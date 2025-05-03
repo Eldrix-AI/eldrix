@@ -10,7 +10,7 @@ export default function AppLayout({
   return (
     <SessionProvider>
       <div className="flex h-screen">
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto">
           <Toaster position="top-right" />
           {children}
         </main>

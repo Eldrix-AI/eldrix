@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../lib/auth";
 import { NextResponse } from "next/server";
 import { getUserByEmail, updateUser } from "../../../lib/db";
+import { techUsage as techUsageLib } from "../../../db/index.mjs";
 
 export async function POST(request: Request) {
   // Check session for authentication
@@ -49,9 +50,45 @@ export async function POST(request: Request) {
       accessibilityNeeds: data.accessibilityNeeds,
       preferredContactMethod: data.preferredContactMethod,
       experienceLevel: data.experienceLevel,
+      notification: data.notification ? 1 : 0,
+      darkMode: data.darkMode ? 1 : 0,
+      emailList: data.emailList ? 1 : 0,
+      smsConsent: data.smsConsent ? 1 : 0,
     };
 
     const updatedUser = await updateUser(data.id, updateData);
+
+    // Handle tech usage items for the TechUsage table
+    try {
+      // First, delete existing tech usage items
+      await techUsageLib.deleteAllUserTechUsages(data.id);
+
+      // Parse the techUsage JSON string
+      let techItems = [];
+      try {
+        techItems = JSON.parse(data.techUsage || "[]");
+      } catch (e) {
+        console.error("Error parsing techUsage JSON:", e);
+      }
+
+      // Add each tech item to the TechUsage table
+      for (const item of techItems) {
+        await techUsageLib.createTechUsage({
+          userId: data.id,
+          deviceType: "general",
+          deviceName: item,
+          skillLevel: data.experienceLevel || "beginner",
+          usageFrequency: "regularly",
+        });
+      }
+
+      console.log(
+        `Updated ${techItems.length} tech usage items for user ${data.id}`
+      );
+    } catch (techError) {
+      console.error("Error updating tech usage items:", techError);
+      // Continue with the response even if tech usage update fails
+    }
 
     return NextResponse.json({
       message: "User updated successfully",

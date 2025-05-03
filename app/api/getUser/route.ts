@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../lib/auth";
 import { NextResponse } from "next/server";
 import { getUserById } from "../../../lib/db";
+import { techUsage as techUsageLib } from "../../../db/index.mjs";
 
 export async function GET(request: Request) {
   // Check session for authentication
@@ -26,6 +27,28 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Try to get tech usage details from TechUsage table
+    let techUsageData = [];
+    try {
+      const techUsageItems = await techUsageLib.getTechUsagesByUserId(userId);
+      if (
+        techUsageItems &&
+        Array.isArray(techUsageItems) &&
+        techUsageItems.length > 0
+      ) {
+        // Extract device names for the simple list view
+        techUsageData = techUsageItems.map((item: any) => item.deviceName);
+      }
+    } catch (techError) {
+      console.error("Error fetching tech usage data:", techError);
+      // Fall back to the user.techUsage field
+      try {
+        techUsageData = JSON.parse(user.techUsage || "[]");
+      } catch {
+        techUsageData = [];
+      }
+    }
+
     // Return user data with all fields
     const userData = {
       id: user.id,
@@ -35,10 +58,15 @@ export async function GET(request: Request) {
       imageUrl: user.imageUrl || "/default-avatar.png",
       description: user.description || "",
       age: user.age || null,
-      techUsage: user.techUsage || "[]",
+      techUsage: JSON.stringify(techUsageData),
       accessibilityNeeds: user.accessibilityNeeds || "",
       preferredContactMethod: user.preferredContactMethod || "",
       experienceLevel: user.experienceLevel || "",
+      // Include the new fields
+      notification: !!user.notification,
+      darkMode: !!user.darkMode,
+      emailList: !!user.emailList,
+      smsConsent: !!user.smsConsent,
     };
 
     console.log(userData);

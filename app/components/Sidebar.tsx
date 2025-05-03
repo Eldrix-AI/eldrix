@@ -118,7 +118,7 @@ export default function Sidebar({
           >
             <div
               className={`${
-                isCollapsed ? "w-10 h-10" : "w-16 h-16"
+                isCollapsed ? "w-10 h-10 md:block hidden" : "w-16 h-16"
               } overflow-hidden rounded-full`}
             >
               {profilePictureUrl && (

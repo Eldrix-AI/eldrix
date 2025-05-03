@@ -5,8 +5,8 @@ import Sidebar from "../../../components/Sidebar";
 
 interface UserData {
   name: string;
-  profilePictureUrl: string;
-  phoneNumber: string;
+  imageUrl: string;
+  phone: string;
   email?: string;
   id?: string;
 }
@@ -31,8 +31,8 @@ const Chat = () => {
       {userData && (
         <Sidebar
           name={userData.name}
-          profilePictureUrl={userData.profilePictureUrl}
-          phoneNumber={userData.phoneNumber}
+          profilePictureUrl={userData.imageUrl || "/default-avatar.png"}
+          phoneNumber={userData.phone}
         />
       )}
       <div className="flex-1 p-6">Chat Content</div>
