@@ -141,6 +141,7 @@ export default function SignupPage() {
 
       setSuccess(true);
     } catch (error) {
+      console.error("Signup error:", error);
       setErrors((prev) => ({
         ...prev,
         form: "Network error. Please try again.",

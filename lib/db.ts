@@ -82,6 +82,8 @@ export async function createUser(userData: any) {
     ]
   );
 
+  console.log("User created:", result);
+
   return { id, ...userData };
 }
 
@@ -95,6 +97,8 @@ export async function updateUser(id: string, userData: any) {
     ...values,
     id,
   ]);
+
+  console.log("User updated:", result);
 
   return { id, ...userData };
 }

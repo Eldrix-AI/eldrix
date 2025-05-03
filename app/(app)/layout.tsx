@@ -1,6 +1,5 @@
 "use client";
 import { SessionProvider } from "next-auth/react";
-import { useState } from "react";
 import { Toaster } from "react-hot-toast";
 
 export default function AppLayout({

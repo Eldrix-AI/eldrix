@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Sidebar from "../../../components/Sidebar";
 import { toast } from "react-hot-toast";
@@ -25,13 +25,7 @@ const Settings = () => {
   const [techItems, setTechItems] = useState<string[]>([]);
   const [newTechItem, setNewTechItem] = useState("");
 
-  useEffect(() => {
-    if (session?.user?.id) {
-      fetchUserData();
-    }
-  }, [session]);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       setIsLoading(true);
       const res = await fetch(`/api/getUser?userId=${session?.user?.id}`);
@@ -42,7 +36,8 @@ const Settings = () => {
       if (data.techUsage) {
         try {
           setTechItems(JSON.parse(data.techUsage));
-        } catch (e) {
+        } catch (_) {
+          console.error("Error parsing techUsage:", data.techUsage);
           setTechItems([]);
         }
       }
@@ -51,7 +46,13 @@ const Settings = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [session?.user?.id, setUserData, setTechItems, setIsLoading]);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchUserData();
+    }
+  }, [session, fetchUserData]);
 
   const handleInputChange = (
     e: React.ChangeEvent<
