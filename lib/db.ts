@@ -1,0 +1,76 @@
+import mysql from "mysql2/promise";
+
+// Create a connection pool
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || "",
+  user: process.env.DB_USER || "",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "",
+  port: parseInt(process.env.DB_PORT || "3306"),
+  connectionLimit: 10,
+});
+
+export async function query<T>(sql: string, params: any[] = []): Promise<T[]> {
+  const [rows] = (await pool.execute(sql, params)) as [T[], any];
+  return rows;
+}
+
+export async function getUserById(id: string) {
+  const users = await query<any>("SELECT * FROM User WHERE id = ?", [id]);
+  return users[0] || null;
+}
+
+export async function getUserByEmail(email: string) {
+  const users = await query<any>("SELECT * FROM User WHERE email = ?", [email]);
+  return users[0] || null;
+}
+
+export async function createUser(userData: any) {
+  const {
+    id,
+    name,
+    email,
+    password,
+    image,
+    emailVerified,
+    phone,
+    imageUrl,
+    description,
+    smsConsent,
+    emailList,
+  } = userData;
+
+  const result = await query(
+    `INSERT INTO User (id, name, email, password, image, emailVerified, phone, imageUrl, description, smsConsent, emailList)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      name,
+      email,
+      password,
+      image,
+      emailVerified,
+      phone,
+      imageUrl,
+      description,
+      smsConsent ? 1 : 0,
+      emailList ? 1 : 0,
+    ]
+  );
+
+  return { id, ...userData };
+}
+
+export async function updateUser(id: string, userData: any) {
+  const fields = Object.keys(userData);
+  const values = Object.values(userData);
+
+  const setClause = fields.map((field) => `${field} = ?`).join(", ");
+
+  const result = await query(`UPDATE User SET ${setClause} WHERE id = ?`, [
+    ...values,
+    id,
+  ]);
+
+  return { id, ...userData };
+}

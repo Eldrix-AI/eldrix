@@ -7,19 +7,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <head>
-        <link
-          rel="icon"
-          href="/logos/icon.png"
-          style={{ borderRadius: "50%" }}
-        />
-      </head>
-      <body className={``}>
-        <Navbar />
-        {children}
-        <Footer />
-      </body>
-    </html>
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      {children}
+      <Footer />
+    </div>
   );
 }

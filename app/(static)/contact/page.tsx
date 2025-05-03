@@ -29,13 +29,13 @@ export default function ContactPage() {
           <ContactLine
             Icon={FaEnvelope}
             label="Email"
-            value="davidfalesct@gmail.com"
+            value="info@eldrix.app"
           />
           <ContactLine Icon={FaPhoneAlt} label="Phone" value="720‑612‑969" />
           <ContactLine
             Icon={FaMapMarkerAlt}
             label="Location"
-            value="Temp, Arizona"
+            value="Tempe, Arizona"
           />
         </div>
 
