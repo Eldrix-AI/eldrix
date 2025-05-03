@@ -11,8 +11,24 @@ const pool = mysql.createPool({
 });
 
 export async function query<T>(sql: string, params: any[] = []): Promise<T[]> {
-  const [rows] = (await pool.execute(sql, params)) as [T[], any];
-  return rows;
+  try {
+    // Ensure no undefined values in params
+    const safeParams = params.map((param) =>
+      param === undefined ? null : param
+    );
+
+    // Log query for debugging (in development only)
+    if (process.env.NODE_ENV !== "production") {
+      console.log("SQL:", sql);
+      console.log("Params:", JSON.stringify(safeParams));
+    }
+
+    const [rows] = (await pool.execute(sql, safeParams)) as [T[], any];
+    return rows;
+  } catch (error) {
+    console.error("Database query error:", error);
+    throw error;
+  }
 }
 
 export async function getUserById(id: string) {
@@ -31,30 +47,38 @@ export async function createUser(userData: any) {
     name,
     email,
     password,
-    image,
-    emailVerified,
     phone,
     imageUrl,
-    description,
+    description = "",
     smsConsent,
     emailList,
+    age = null,
+    techUsage = null,
+    accessibilityNeeds = null,
+    preferredContactMethod = "phone",
+    experienceLevel = "beginner",
   } = userData;
 
   const result = await query(
-    `INSERT INTO User (id, name, email, password, image, emailVerified, phone, imageUrl, description, smsConsent, emailList)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO User (id, name, email, password, phone, imageUrl, description, 
+     smsConsent, emailList, age, techUsage, accessibilityNeeds, 
+     preferredContactMethod, experienceLevel)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       name,
       email,
       password,
-      image,
-      emailVerified,
-      phone,
-      imageUrl,
+      phone || null,
+      imageUrl || null,
       description,
       smsConsent ? 1 : 0,
       emailList ? 1 : 0,
+      age,
+      techUsage,
+      accessibilityNeeds,
+      preferredContactMethod,
+      experienceLevel,
     ]
   );
 

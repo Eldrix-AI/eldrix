@@ -55,20 +55,32 @@ export async function POST(req: Request) {
     )}&background=%23F4C95D&size=128`;
 
     const userId = uuidv4();
-    const user = await createUser({
+
+    // Prepare user data with fields matching the database schema
+    const userData = {
       id: userId,
-      name,
-      email,
-      phone,
+      name: name || "",
+      email: email || "",
+      phone: phone || "",
       password: hashed,
-      imageUrl: avatarUrl,
-      smsConsent,
-      emailList,
-    });
+      imageUrl: avatarUrl || "",
+      description: "",
+      smsConsent: Boolean(smsConsent),
+      emailList: Boolean(emailList),
+      age: null,
+      techUsage: "[]",
+      accessibilityNeeds: "",
+      preferredContactMethod: "",
+      experienceLevel: "",
+    };
+
+    console.log("Creating user with data:", JSON.stringify(userData, null, 2));
+
+    const user = await createUser(userData);
 
     return NextResponse.json({ user }, { status: 201 });
   } catch (err) {
-    console.error(err);
+    console.error("Signup error details:", err);
     return NextResponse.json(
       { error: "Internal server error." },
       { status: 500 }
