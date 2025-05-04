@@ -59,18 +59,33 @@ export async function createHelpSession(sessionData) {
   const {
     id,
     userId,
-    title,
-    description,
+    title = "",
+    sessionRecap = null,
+    completed = false,
+    lastMessage = null,
+    type,
     status = "open",
-    priority = "medium",
+    priority = "",
     createdAt = new Date(),
     updatedAt = new Date(),
   } = sessionData;
 
   const result = await query(
-    `INSERT INTO HelpSession (id, userId, title, description, status, priority, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, userId, title, description, status, priority, createdAt, updatedAt]
+    `INSERT INTO HelpSession (id, userId, title, sessionRecap, completed, lastMessage, type, status, priority, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      userId,
+      title,
+      sessionRecap,
+      completed,
+      lastMessage,
+      type,
+      status,
+      priority,
+      createdAt,
+      updatedAt,
+    ]
   );
 
   console.log("Help session created:", result);
@@ -126,4 +141,78 @@ export async function countHelpSessionsByStatus(status) {
     [status]
   );
   return result[0].count;
+}
+
+/**
+ * Get a help session with its associated messages
+ */
+export async function getHelpSessionWithMessages(sessionId) {
+  // Get the help session first
+  const session = await getHelpSessionById(sessionId);
+
+  if (!session) {
+    return null;
+  }
+
+  // Get associated messages
+  const messages = await query(
+    "SELECT * FROM Message WHERE helpSessionId = ? ORDER BY createdAt ASC",
+    [sessionId]
+  );
+
+  // Return the session with messages
+  return {
+    ...session,
+    messages,
+  };
+}
+
+/**
+ * Get all help sessions with their associated messages
+ */
+export async function getAllHelpSessionsWithMessages() {
+  // Get all help sessions
+  const sessions = await getAllHelpSessions();
+
+  // For each session, get the messages
+  const sessionsWithMessages = await Promise.all(
+    sessions.map(async (session) => {
+      const messages = await query(
+        "SELECT * FROM Message WHERE helpSessionId = ? ORDER BY createdAt ASC",
+        [session.id]
+      );
+
+      return {
+        ...session,
+        messages,
+      };
+    })
+  );
+
+  return sessionsWithMessages;
+}
+
+/**
+ * Get help sessions with their messages for a specific user
+ */
+export async function getHelpSessionsWithMessagesByUserId(userId) {
+  // Get all help sessions for the user
+  const sessions = await getHelpSessionsByUserId(userId);
+
+  // For each session, get the messages
+  const sessionsWithMessages = await Promise.all(
+    sessions.map(async (session) => {
+      const messages = await query(
+        "SELECT * FROM Message WHERE helpSessionId = ? ORDER BY createdAt ASC",
+        [session.id]
+      );
+
+      return {
+        ...session,
+        messages,
+      };
+    })
+  );
+
+  return sessionsWithMessages;
 }

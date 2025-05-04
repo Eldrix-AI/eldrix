@@ -6,6 +6,9 @@ import * as users from "./users.mjs";
 // Import all help session-related functions
 import * as helpSessions from "./helpSessions.mjs";
 
+// Import all message-related functions
+import * as messages from "./messages.mjs";
+
 // Import all tech usage-related functions
 import * as techUsage from "./techUsage.mjs";
 
@@ -17,10 +20,11 @@ import * as deleteAll from "./deleteAll.mjs";
 export default {
   users,
   helpSessions,
+  messages,
   techUsage,
   deleteByIndex,
   deleteAll,
 };
 
 // Also export individual modules for direct imports
-export { users, helpSessions, techUsage, deleteByIndex, deleteAll };
+export { users, helpSessions, messages, techUsage, deleteByIndex, deleteAll };
