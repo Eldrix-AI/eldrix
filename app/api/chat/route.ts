@@ -130,9 +130,11 @@ export async function POST(request: Request) {
         );
       }
 
-      // Update the last message
+      // Update the last message but maintain the current status
       await helpSessions.updateHelpSession(sessionId, {
         lastMessage: messageContent,
+        // Don't change the status when a user sends a message
+        // Status should only change to "open" when an admin responds
       });
     }
 

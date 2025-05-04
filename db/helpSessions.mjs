@@ -64,7 +64,7 @@ export async function createHelpSession(sessionData) {
     completed = false,
     lastMessage = null,
     type,
-    status = "open",
+    status = "pending",
     priority = "",
     createdAt = new Date(),
     updatedAt = new Date(),

@@ -66,7 +66,6 @@ export default function Sidebar({
   const navItems = [
     { label: "Dashboard", href: "/app/dashboard", Icon: FaTachometerAlt },
     { label: "Chat", href: "/app/chat", Icon: FaComments },
-    { label: "Usage", href: "/app/usage", Icon: FaChartBar },
     { label: "Settings", href: "/app/settings", Icon: FaCog },
     { label: "History", href: "/app/history", Icon: FaHistory },
   ];
