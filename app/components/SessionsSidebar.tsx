@@ -1,6 +1,6 @@
 import React from "react";
 import { formatDistanceToNow } from "date-fns";
-import { FaCheckCircle, FaCircle, FaClock } from "react-icons/fa";
+import { FaCheckCircle, FaCircle, FaClock, FaImage } from "react-icons/fa";
 
 interface HelpSession {
   id: string;
@@ -46,6 +46,20 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
     // Otherwise sort by update time (most recent first)
     return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
   });
+
+  // Function to check if a message is an image message
+  const isImageMessage = (message: string | null): boolean => {
+    if (!message) return false;
+
+    return (
+      message.includes("Image attachment") ||
+      message.includes("deepskygallery.s3.us-east-2.amazonaws.com") ||
+      message.includes("![Image]") ||
+      message.startsWith("!") ||
+      /!\[Image\]\(.*?\)/.test(message) ||
+      message.includes("I've sent an image.")
+    );
+  };
 
   return (
     <div className="w-80 flex-shrink-0 bg-white border-r border-gray-200 h-full flex flex-col">
@@ -93,8 +107,15 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {session.title || "Untitled Chat"}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1 truncate">
-                      {session.lastMessage || "No messages"}
+                    <p className="text-xs text-gray-500 mt-1 truncate flex items-center">
+                      {isImageMessage(session.lastMessage) ? (
+                        <>
+                          <FaImage className="mr-1" size={12} />
+                          <span>Attached Image</span>
+                        </>
+                      ) : (
+                        session.lastMessage || "No messages"
+                      )}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       {formatDistanceToNow(new Date(session.updatedAt), {

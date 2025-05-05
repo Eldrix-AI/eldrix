@@ -72,6 +72,12 @@ const Chat = () => {
     }
   }, [session]);
 
+  // Add useEffect to scroll to bottom on initial render
+  useEffect(() => {
+    // Initial scroll to bottom when component mounts
+    scrollToBottom();
+  }, []);
+
   useEffect(() => {
     // Scroll to bottom whenever messages change
     scrollToBottom();
@@ -123,15 +129,23 @@ const Chat = () => {
       if (data.unreadMessages && data.unreadMessages.length > 0) {
         // Convert unread messages to our format
         const newMessages = data.unreadMessages.map((msg: ApiMessage) => {
-          const isImageAttachment =
-            msg.content.includes("Image attachment") && msg.imageUrl;
+          // Check if this is an image message
+          const isImageMessage =
+            (msg.content.includes("Image attachment") && msg.imageUrl) ||
+            msg.content.includes("deepskygallery.s3.us-east-2.amazonaws.com") ||
+            msg.content.includes("![Image]") ||
+            msg.content.startsWith("!") ||
+            /!\[Image\]\(.*?\)/.test(msg.content);
+
           return {
             id: msg.id,
-            text: isImageAttachment ? "I've sent an image." : msg.content,
+            text: isImageMessage ? "Attached Image" : msg.content,
             sender: msg.isAdmin ? "assistant" : "user",
             timestamp: new Date(msg.createdAt),
             status: msg.read ? "read" : "delivered",
-            imageUrl: msg.imageUrl, // Include image URL if it exists
+            imageUrl:
+              msg.imageUrl ||
+              (isImageMessage ? extractImageUrl(msg.content) : undefined),
           };
         });
 
@@ -511,9 +525,40 @@ const Chat = () => {
   // Call fetchUserSessions in a useEffect
   useEffect(() => {
     if (session?.user?.id) {
-      fetchUserSessions();
+      fetchUserSessions().then(() => {
+        // Auto-select most recent active session if no session is currently selected
+        if (!helpSessionId) {
+          autoSelectActiveSession();
+        }
+      });
     }
   }, [session?.user?.id]);
+
+  // Function to automatically select the most recent active session
+  const autoSelectActiveSession = () => {
+    // If we have sessions and no current session is selected
+    if (sessions.length > 0 && !helpSessionId) {
+      // Find the most recent active session
+      const activeSession = sessions.find((s) => s.completed === 0);
+
+      // If there's an active session, select it
+      if (activeSession) {
+        console.log("Auto-selecting active session:", activeSession.id);
+        handleSelectSession(activeSession.id);
+      } else {
+        // If no active session, select the most recent one
+        const mostRecent = [...sessions].sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        )[0];
+
+        if (mostRecent) {
+          console.log("Auto-selecting most recent session:", mostRecent.id);
+          handleSelectSession(mostRecent.id);
+        }
+      }
+    }
+  };
 
   // Add a function to handle session selection
   const handleSelectSession = async (sessionId: string) => {
@@ -561,15 +606,23 @@ const Chat = () => {
 
       // Format messages for the UI
       const formattedMessages = messagesData.messages.map((msg: any) => {
-        const isImageAttachment =
-          msg.content.includes("Image attachment") && msg.imageUrl;
+        // Check if this is an image message
+        const isImageMessage =
+          (msg.content.includes("Image attachment") && msg.imageUrl) ||
+          msg.content.includes("deepskygallery.s3.us-east-2.amazonaws.com") ||
+          msg.content.includes("![Image]") ||
+          msg.content.startsWith("!") ||
+          /!\[Image\]\(.*?\)/.test(msg.content);
+
         return {
           id: msg.id,
-          text: isImageAttachment ? "I've sent an image." : msg.content,
+          text: isImageMessage ? "Attached Image" : msg.content,
           sender: msg.isAdmin ? "assistant" : "user",
           timestamp: new Date(msg.createdAt),
           status: msg.read ? "read" : "delivered",
-          imageUrl: msg.imageUrl, // Include the imageUrl if it exists
+          imageUrl:
+            msg.imageUrl ||
+            (isImageMessage ? extractImageUrl(msg.content) : undefined),
         };
       });
 
@@ -589,6 +642,8 @@ const Chat = () => {
       console.error("Error loading session:", error);
     } finally {
       setIsLoading(false);
+      // Ensure we scroll to bottom after loading messages
+      setTimeout(scrollToBottom, 100);
     }
   };
 
@@ -613,6 +668,31 @@ const Chat = () => {
         status: "delivered",
       },
     ]);
+  };
+
+  // Add a function to extract image URL from a message
+  const extractImageUrl = (content: string): string | undefined => {
+    // Try to match [Image: URL] format
+    let match = content.match(/\[Image: (.*?)\]/);
+    if (match && match[1]) {
+      return match[1];
+    }
+
+    // Try to match ![Image](URL) format
+    match = content.match(/!\[Image\]\((.*?)\)/);
+    if (match && match[1]) {
+      return match[1];
+    }
+
+    // Try to match URL directly if it contains amazonaws
+    if (content.includes("deepskygallery.s3.us-east-2.amazonaws.com")) {
+      match = content.match(/(https?:\/\/[^\s]+)/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+
+    return undefined;
   };
 
   return (
@@ -736,7 +816,10 @@ const Chat = () => {
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div
+          className="flex-1 overflow-y-auto p-6 space-y-4"
+          id="messagesContainer"
+        >
           {messages.map((msg, index) => {
             // Check if this is an image message (contains image URL text)
             const isImageUrlMessage =
@@ -744,21 +827,30 @@ const Chat = () => {
               typeof msg.text === "string" &&
               (msg.text.includes("Image attachment [Image:") ||
                 msg.text.includes(
-                  "deepskygallery.s3.us-east-2.amazonaws.com/eldrix/chat-images"
-                ));
+                  "deepskygallery.s3.us-east-2.amazonaws.com/eldrix"
+                ) ||
+                msg.text.includes("![Image](https://") ||
+                msg.text.match(/!\[Image\]\(.*?\)/) ||
+                msg.text.match(/^!\[Image\]/) ||
+                msg.text.startsWith("!"));
 
             // For image messages, replace the verbose URL text with simpler message
-            const displayText = isImageUrlMessage
-              ? "I've sent an image."
-              : msg.text;
+            const displayText = isImageUrlMessage ? "Attached Image" : msg.text;
 
             // If it's an image URL message but doesn't have imageUrl property,
             // extract the URL from the text
             let imageUrl = msg.imageUrl;
             if (isImageUrlMessage && !imageUrl) {
-              const match = msg.text.match(/\[Image: (.*?)\]/);
+              // Try to match [Image: URL] format
+              let match = msg.text.match(/\[Image: (.*?)\]/);
               if (match && match[1]) {
                 imageUrl = match[1];
+              } else {
+                // Try to match ![Image](URL) format
+                match = msg.text.match(/!\[Image\]\((.*?)\)/);
+                if (match && match[1]) {
+                  imageUrl = match[1];
+                }
               }
             }
 

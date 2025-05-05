@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
-<url><loc>https://www.eldrix.app/contact</loc><lastmod>2025-05-05T01:15:23.648Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-<url><loc>https://www.eldrix.app/pricing</loc><lastmod>2025-05-05T01:15:23.650Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-<url><loc>https://www.eldrix.app/terms</loc><lastmod>2025-05-05T01:15:23.650Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-<url><loc>https://www.eldrix.app/faqs</loc><lastmod>2025-05-05T01:15:23.650Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-<url><loc>https://www.eldrix.app/privacy</loc><lastmod>2025-05-05T01:15:23.650Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-<url><loc>https://www.eldrix.app/signup</loc><lastmod>2025-05-05T01:15:23.650Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-<url><loc>https://www.eldrix.app/reset</loc><lastmod>2025-05-05T01:15:23.650Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-<url><loc>https://www.eldrix.app/about</loc><lastmod>2025-05-05T01:15:23.650Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-<url><loc>https://www.eldrix.app</loc><lastmod>2025-05-05T01:15:23.650Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-<url><loc>https://www.eldrix.app/login</loc><lastmod>2025-05-05T01:15:23.650Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.eldrix.app/reset</loc><lastmod>2025-05-05T03:40:01.610Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.eldrix.app/signup</loc><lastmod>2025-05-05T03:40:01.611Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.eldrix.app/about</loc><lastmod>2025-05-05T03:40:01.611Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.eldrix.app/terms</loc><lastmod>2025-05-05T03:40:01.611Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.eldrix.app/pricing</loc><lastmod>2025-05-05T03:40:01.611Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.eldrix.app/login</loc><lastmod>2025-05-05T03:40:01.611Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.eldrix.app</loc><lastmod>2025-05-05T03:40:01.611Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.eldrix.app/faqs</loc><lastmod>2025-05-05T03:40:01.611Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.eldrix.app/privacy</loc><lastmod>2025-05-05T03:40:01.611Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.eldrix.app/contact</loc><lastmod>2025-05-05T03:40:01.611Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
 </urlset>
