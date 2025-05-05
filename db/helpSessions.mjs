@@ -216,3 +216,138 @@ export async function getHelpSessionsWithMessagesByUserId(userId) {
 
   return sessionsWithMessages;
 }
+
+/**
+ * Get help sessions from the last 24 hours
+ */
+export async function getLastDayHelpSessions(userId) {
+  const oneDayAgo = new Date();
+  oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+  return await query(
+    "SELECT * FROM HelpSession WHERE userId = ? AND createdAt >= ? ORDER BY createdAt DESC",
+    [userId, oneDayAgo]
+  );
+}
+
+/**
+ * Get help sessions from the last 7 days
+ */
+export async function getLastWeekHelpSessions(userId) {
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+  return await query(
+    "SELECT * FROM HelpSession WHERE userId = ? AND createdAt >= ? AND createdAt < ? ORDER BY createdAt DESC",
+    [userId, oneWeekAgo, getOneDayAgo()]
+  );
+}
+
+/**
+ * Get help sessions from the last 30 days (excluding last 7 days)
+ */
+export async function getLastMonthHelpSessions(userId) {
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+  return await query(
+    "SELECT * FROM HelpSession WHERE userId = ? AND createdAt >= ? AND createdAt < ? ORDER BY createdAt DESC",
+    [userId, oneMonthAgo, oneWeekAgo]
+  );
+}
+
+/**
+ * Get help sessions older than 30 days
+ */
+export async function getOlderHelpSessions(userId) {
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+
+  return await query(
+    "SELECT * FROM HelpSession WHERE userId = ? AND createdAt < ? ORDER BY createdAt DESC",
+    [userId, oneMonthAgo]
+  );
+}
+
+/**
+ * Get number of sessions used in current week (Monday - Sunday)
+ */
+export async function getWeeklySessionCount(userId) {
+  // Get the start of the current week (Monday)
+  const currentDate = new Date();
+  const currentDay = currentDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const diff = currentDay === 0 ? 6 : currentDay - 1; // Adjust for Monday start
+
+  const startOfWeek = new Date(currentDate);
+  startOfWeek.setDate(currentDate.getDate() - diff);
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+  // Get sessions created this week
+  const sessionsThisWeek = await query(
+    "SELECT COUNT(*) as count FROM HelpSession WHERE userId = ? AND createdAt >= ? AND createdAt < ?",
+    [userId, startOfWeek, endOfWeek]
+  );
+
+  return sessionsThisWeek[0].count;
+}
+
+/**
+ * Calculate average session duration
+ */
+export async function getAverageSessionDuration(userId) {
+  // Try to get all completed sessions
+  const completedSessions = await query(
+    "SELECT *, TIMESTAMPDIFF(MINUTE, createdAt, updatedAt) as sessionDuration FROM HelpSession WHERE userId = ? AND completed = 1",
+    [userId]
+  );
+
+  if (completedSessions.length === 0) {
+    return 0;
+  }
+
+  // Calculate average duration using createdAt and updatedAt timestamps
+  let totalDuration = 0;
+  let validSessions = 0;
+
+  for (const session of completedSessions) {
+    // If we have a sessionDuration calculated by MySQL, use it
+    if (session.sessionDuration > 0) {
+      totalDuration += session.sessionDuration;
+      validSessions++;
+    } else {
+      // Fallback to calculating duration from messages if available
+      const messages = await query(
+        "SELECT MIN(createdAt) as firstMessage, MAX(createdAt) as lastMessage FROM Message WHERE helpSessionId = ?",
+        [session.id]
+      );
+
+      if (messages[0].firstMessage && messages[0].lastMessage) {
+        const startTime = new Date(messages[0].firstMessage).getTime();
+        const endTime = new Date(messages[0].lastMessage).getTime();
+        const duration = Math.floor((endTime - startTime) / 60000); // Minutes
+
+        // Only count sessions with meaningful duration (more than 1 minute)
+        if (duration > 1) {
+          totalDuration += duration;
+          validSessions++;
+        }
+      }
+    }
+  }
+
+  return validSessions > 0 ? Math.floor(totalDuration / validSessions) : 0; // Return average in minutes
+}
+
+/**
+ * Get helper function for one day ago
+ */
+function getOneDayAgo() {
+  const oneDayAgo = new Date();
+  oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+  return oneDayAgo;
+}
