@@ -118,15 +118,16 @@ export default function Sidebar({
             <div
               className={`${
                 isCollapsed ? "w-10 h-10 md:block hidden" : "w-16 h-16"
-              } overflow-hidden rounded-full`}
+              } overflow-hidden rounded-full flex items-center justify-center bg-blue-500 text-white font-semibold`}
             >
-              {profilePictureUrl && (
-                <img
-                  src={profilePictureUrl}
-                  alt={`${name}'s profile picture`}
-                  className="w-full h-full object-cover"
-                />
-              )}
+              <span className={`${isCollapsed ? "text-sm" : "text-lg"}`}>
+                {name
+                  ?.split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2)}
+              </span>
             </div>
             {!isCollapsed && (
               <>

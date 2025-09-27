@@ -2,6 +2,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import {
   FaUserPlus,
   FaEye,
@@ -15,13 +16,9 @@ import {
 export default function SignupPage() {
   const router = useRouter();
   const [form, setForm] = useState({
-    name: "",
     email: "",
-    phone: "",
     password: "",
     confirmPassword: "",
-    smsConsent: false,
-    emailList: true,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -29,21 +26,16 @@ export default function SignupPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [countdown, setCountdown] = useState(5);
 
   /* ---------- helpers ---------- */
   const validateEmail = (email: string) => /^\S+@\S+\.\S+$/.test(email.trim());
-  const validatePhone = (phone: string) =>
-    /^[0-9+\-() ]{7,15}$/.test(phone.trim());
 
   /* ---------- effects ---------- */
   useEffect(() => {
-    if (success && countdown > 0) {
-      const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
-      return () => clearTimeout(t);
+    if (success) {
+      router.push("/app/onboarding");
     }
-    if (success && countdown === 0) router.push("/login");
-  }, [success, countdown, router]);
+  }, [success, router]);
 
   /* ---------- handlers ---------- */
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -53,23 +45,13 @@ export default function SignupPage() {
   }
 
   function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
-    const { name, type, value, checked } = e.target;
+    const { name, value } = e.target;
     let error = "";
-
-    /* checkbox fields */
-    if (type === "checkbox") {
-      if (name === "smsConsent" && !checked)
-        error = "You must agree to receive SMS & calls.";
-      setErrors((er) => ({ ...er, [name]: error }));
-      return;
-    }
 
     /* text fields */
     if (!value.trim()) error = "This field is required.";
     else if (name === "email" && !validateEmail(value))
       error = "Please enter a valid email.";
-    else if (name === "phone" && !validatePhone(value))
-      error = "Please enter a valid phone number.";
     else if (name === "confirmPassword" && value !== form.password)
       error = "Passwords do not match.";
 
@@ -85,31 +67,17 @@ export default function SignupPage() {
     /* trigger blur validation on every field */
     const newErrors: Record<string, string> = {};
 
-    [
-      "name",
-      "email",
-      "phone",
-      "password",
-      "confirmPassword",
-      "smsConsent",
-      "emailList",
-    ].forEach((field) => {
+    ["email", "password", "confirmPassword"].forEach((field) => {
       const value = (form as any)[field];
       let error = "";
 
       // Validate each field
-      if (field !== "emailList") {
-        if (field === "smsConsent" && !value) {
-          error = "You must agree to receive SMS & calls.";
-        } else if (typeof value === "string" && !value.trim()) {
-          error = "This field is required.";
-        } else if (field === "email" && !validateEmail(value)) {
-          error = "Please enter a valid email.";
-        } else if (field === "phone" && !validatePhone(value)) {
-          error = "Please enter a valid phone number.";
-        } else if (field === "confirmPassword" && value !== form.password) {
-          error = "Passwords do not match.";
-        }
+      if (typeof value === "string" && !value.trim()) {
+        error = "This field is required.";
+      } else if (field === "email" && !validateEmail(value)) {
+        error = "Please enter a valid email.";
+      } else if (field === "confirmPassword" && value !== form.password) {
+        error = "Passwords do not match.";
       }
 
       if (error) {
@@ -139,7 +107,21 @@ export default function SignupPage() {
         return;
       }
 
-      setSuccess(true);
+      // Auto-login the user after successful signup
+      const signInResult = await signIn("credentials", {
+        email: form.email,
+        password: form.password,
+        redirect: false,
+      });
+
+      if (signInResult?.ok) {
+        setSuccess(true);
+      } else {
+        setErrors((prev) => ({
+          ...prev,
+          form: "Account created but login failed. Please try logging in manually.",
+        }));
+      }
     } catch (error) {
       console.error("Signup error:", error);
       setErrors((prev) => ({
@@ -164,131 +146,65 @@ export default function SignupPage() {
         </div>
       </header>
 
-      {/* success view */}
-      {success ? (
-        <main className="min-h-screen bg-[#FDF9F4] flex justify-center items-center p-6">
-          <div className="w-full max-w-lg bg-white p-8 rounded-2xl shadow text-center space-y-6">
-            <FaCheckCircle className="mx-auto text-6xl text-green-500" />
-            <h2 className="text-3xl font-extrabold text-[#2D3E50]">
-              Account Created!
-            </h2>
-            <p className="text-gray-600">
-              Redirecting to login in {countdown}s…
-            </p>
-            <button
-              onClick={() => router.push("/login")}
-              className="w-full py-3 bg-[#2D3E50] text-white rounded-lg flex items-center justify-center gap-2"
-            >
-              <FaSignInAlt /> Login Now
-            </button>
+      {/* form view */}
+      <main className="min-h-screen bg-[#FDF9F4] flex justify-center items-center p-6">
+        <form
+          onSubmit={handleSubmit}
+          noValidate
+          className="w-full max-w-lg bg-white p-8 rounded-2xl shadow space-y-6"
+        >
+          <h2 className="text-3xl font-extrabold text-[#2D3E50] text-center flex items-center justify-center gap-2">
+            <FaUserPlus /> Create Account
+          </h2>
+          {errors.form && (
+            <p className="text-red-500 text-center">{errors.form}</p>
+          )}
+
+          {/* email */}
+          <InputField
+            icon={<FaEnvelope />}
+            label="Email"
+            name="email"
+            type="email"
+            value={form.email}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            error={errors.email}
+          />
+
+          {/* passwords */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <PasswordField
+              label="Password"
+              name="password"
+              value={form.password}
+              show={showPassword}
+              setShow={setShowPassword}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={errors.password}
+            />
+            <PasswordField
+              label="Confirm Password"
+              name="confirmPassword"
+              value={form.confirmPassword}
+              show={showConfirm}
+              setShow={setShowConfirm}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={errors.confirmPassword}
+            />
           </div>
-        </main>
-      ) : (
-        /* form view */
-        <main className="min-h-screen bg-[#FDF9F4] flex justify-center items-center p-6">
-          <form
-            onSubmit={handleSubmit}
-            noValidate
-            className="w-full max-w-lg bg-white p-8 rounded-2xl shadow space-y-6"
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-[#2D3E50] text-white rounded-lg disabled:opacity-50"
           >
-            <h2 className="text-3xl font-extrabold text-[#2D3E50] text-center flex items-center justify-center gap-2">
-              <FaUserPlus /> Create Account
-            </h2>
-            {errors.form && (
-              <p className="text-red-500 text-center">{errors.form}</p>
-            )}
-
-            {/* name / email */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputField
-                icon={<FaUserPlus />}
-                label="Name"
-                name="name"
-                type="text"
-                value={form.name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                error={errors.name}
-              />
-              <InputField
-                icon={<FaEnvelope />}
-                label="Email"
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                error={errors.email}
-              />
-            </div>
-
-            {/* phone */}
-            <InputField
-              icon={<FaPhoneAlt />}
-              label="Phone"
-              name="phone"
-              type="tel"
-              value={form.phone}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={errors.phone}
-            />
-
-            {/* passwords */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <PasswordField
-                label="Password"
-                name="password"
-                value={form.password}
-                show={showPassword}
-                setShow={setShowPassword}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                error={errors.password}
-              />
-              <PasswordField
-                label="Confirm Password"
-                name="confirmPassword"
-                value={form.confirmPassword}
-                show={showConfirm}
-                setShow={setShowConfirm}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                error={errors.confirmPassword}
-              />
-            </div>
-
-            {/* email opt‑in */}
-            <Checkbox
-              id="emailList"
-              name="emailList"
-              checked={form.emailList}
-              onChange={handleChange}
-              label="Subscribe to email updates"
-            />
-
-            {/* sms consent (required) */}
-            <Checkbox
-              id="smsConsent"
-              name="smsConsent"
-              checked={form.smsConsent}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              required
-              label="I agree to receive SMS & calls from Eldrix for support"
-              error={errors.smsConsent}
-            />
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-[#2D3E50] text-white rounded-lg disabled:opacity-50"
-            >
-              {loading ? "Processing…" : "Create Account"}
-            </button>
-          </form>
-        </main>
-      )}
+            {loading ? "Processing…" : "Create Account"}
+          </button>
+        </form>
+      </main>
     </>
   );
 }

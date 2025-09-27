@@ -212,6 +212,27 @@ const Dashboard = () => {
           )}
         </div>
 
+        {/* Start Chat Button */}
+        <div className="mb-6">
+          <Link href="/app/chat" className="block">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-lg shadow-lg p-6 text-center transition-all duration-200 hover:shadow-xl">
+              <div className="flex items-center justify-center mb-3">
+                <FaComments className="h-8 w-8 text-white mr-3" />
+                <h2 className="text-2xl font-bold text-white">
+                  Start a New Chat
+                </h2>
+              </div>
+              <p className="text-blue-100 text-lg mb-4">
+                Get instant help with your technology questions
+              </p>
+              <div className="inline-flex items-center bg-white bg-opacity-90 hover:bg-opacity-100 px-6 py-3 rounded-full text-blue-600 font-semibold transition-all duration-200 shadow-lg">
+                <span>Start Chatting Now</span>
+                <FaArrowRight className="ml-2 h-4 w-4" />
+              </div>
+            </div>
+          </Link>
+        </div>
+
         {/* Stats Section */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">

@@ -6,25 +6,9 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function POST(req: Request) {
   try {
-    const {
-      name,
-      email,
-      phone,
-      password,
-      confirmPassword,
-      smsConsent,
-      emailList,
-    } = await req.json();
+    const { email, password, confirmPassword } = await req.json();
 
-    if (
-      !name ||
-      !email ||
-      !phone ||
-      !password ||
-      !confirmPassword ||
-      !smsConsent ||
-      !emailList
-    )
+    if (!email || !password || !confirmPassword)
       return NextResponse.json(
         { error: "All fields are required." },
         { status: 400 }
@@ -33,12 +17,6 @@ export async function POST(req: Request) {
     if (password !== confirmPassword)
       return NextResponse.json(
         { error: "Passwords must match." },
-        { status: 400 }
-      );
-
-    if (!smsConsent)
-      return NextResponse.json(
-        { error: "SMS consent required." },
         { status: 400 }
       );
 
@@ -51,7 +29,7 @@ export async function POST(req: Request) {
 
     const hashed = await bcrypt.hash(password, 10);
     const avatarUrl = `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(
-      name
+      email
     )}&background=%23F4C95D&size=128`;
 
     const userId = uuidv4();
@@ -59,19 +37,19 @@ export async function POST(req: Request) {
     // Prepare user data with fields matching the database schema
     const userData = {
       id: userId,
-      name: name || "",
+      name: "User", // Default name until collected in onboarding
       email: email || "",
-      phone: phone || "",
+      phone: "000-000-0000", // Default phone until collected in onboarding
       password: hashed,
       imageUrl: avatarUrl || "",
       description: "",
-      smsConsent: Boolean(smsConsent),
-      emailList: Boolean(emailList),
+      smsConsent: false, // Will be collected in onboarding
+      emailList: true, // Default to true
       age: null,
       techUsage: "[]",
       accessibilityNeeds: "",
-      preferredContactMethod: "",
-      experienceLevel: "",
+      preferredContactMethod: "phone",
+      experienceLevel: "beginner",
     };
 
     console.log("Creating user with data:", JSON.stringify(userData, null, 2));

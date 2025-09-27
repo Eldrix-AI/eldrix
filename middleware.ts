@@ -11,6 +11,9 @@ export async function middleware(req: NextRequest) {
   const authPages = ["/login", "/signup", "/reset"];
   const isAuthPage = authPages.some((page) => pathname === page);
 
+  // Onboarding pages (allow authenticated users to access)
+  const isOnboardingPage = pathname.startsWith("/app/onboarding");
+
   // 1. Unauthenticated → trying to hit /app/* → send to login
   if (!isAuthenticated && pathname.startsWith("/app")) {
     const loginUrl = new URL("/login", req.url);
@@ -23,7 +26,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/app/dashboard", req.url));
   }
 
-  // 3. Otherwise let it through (this also covers all your public pages)
+  // 3. Allow authenticated users to access onboarding pages
+  if (isAuthenticated && isOnboardingPage) {
+    return NextResponse.next();
+  }
+
+  // 4. Otherwise let it through (this also covers all your public pages)
   return NextResponse.next();
 }
 

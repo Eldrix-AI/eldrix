@@ -62,8 +62,8 @@ export async function createUser(userData: any) {
   const result = await query(
     `INSERT INTO User (id, name, email, password, phone, imageUrl, description, 
      smsConsent, emailList, age, techUsage, accessibilityNeeds, 
-     preferredContactMethod, experienceLevel)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     preferredContactMethod, experienceLevel, notification, darkMode)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       name,
@@ -79,6 +79,8 @@ export async function createUser(userData: any) {
       accessibilityNeeds,
       preferredContactMethod,
       experienceLevel,
+      0, // notification default
+      0, // darkMode default
     ]
   );
 
