@@ -408,10 +408,10 @@ const Dashboard = () => {
                   Call us directly for immediate assistance
                 </p>
                 <a
-                  href="tel:7206122979"
+                  href="tel:8886702766"
                   className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
                 >
-                  720-612-2979
+                  888-670-2766
                 </a>
               </div>
             </div>
@@ -426,7 +426,7 @@ const Dashboard = () => {
                   Text us for immediate assistance
                 </p>
                 <a
-                  href="tel:7206122979"
+                  href="tel:8886702766"
                   className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
                 >
                   Text Us

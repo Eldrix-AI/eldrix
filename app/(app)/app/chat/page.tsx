@@ -796,17 +796,17 @@ const Chat = () => {
           <div className="flex items-center mt-1 text-sm text-[#5A7897]">
             <p>
               Want to chat with your phone? Call or text:{" "}
-              <span className="font-semibold">720-612-2979</span>
+              <span className="font-semibold">888-670-2766</span>
             </p>
             <div className="flex ml-2 space-x-2">
               <a
-                href="tel:7206122979"
+                href="tel:8886702766"
                 className="text-[#2D3E50] hover:text-[#5A7897]"
               >
                 <FaPhoneAlt size={14} />
               </a>
               <a
-                href="sms:7206122979"
+                href="sms:8886702766"
                 className="text-[#2D3E50] hover:text-[#5A7897]"
               >
                 <FaSms size={14} />
