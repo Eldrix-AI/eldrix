@@ -133,6 +133,9 @@ const Chat = () => {
           const isImageMessage =
             (msg.content.includes("Image attachment") && msg.imageUrl) ||
             msg.content.includes("deepskygallery.s3.us-east-2.amazonaws.com") ||
+            msg.content.includes("api.twilio.com") ||
+            msg.content.includes("[Image 1:") ||
+            /\[Image \d+:/.test(msg.content) ||
             msg.content.includes("![Image]") ||
             msg.content.startsWith("!") ||
             /!\[Image\]\(.*?\)/.test(msg.content);
@@ -610,6 +613,9 @@ const Chat = () => {
         const isImageMessage =
           (msg.content.includes("Image attachment") && msg.imageUrl) ||
           msg.content.includes("deepskygallery.s3.us-east-2.amazonaws.com") ||
+          msg.content.includes("api.twilio.com") ||
+          msg.content.includes("[Image 1:") ||
+          /\[Image \d+:/.test(msg.content) ||
           msg.content.includes("![Image]") ||
           msg.content.startsWith("!") ||
           /!\[Image\]\(.*?\)/.test(msg.content);
@@ -670,10 +676,43 @@ const Chat = () => {
     ]);
   };
 
+  // Add a function to make links clickable
+  const makeLinksClickable = (text: string): React.ReactNode => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+
+    return (
+      <>
+        {parts.map((part, index) => {
+          if (urlRegex.test(part)) {
+            return (
+              <a
+                key={index}
+                href={part}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:text-blue-700 underline break-all"
+              >
+                {part}
+              </a>
+            );
+          }
+          return part;
+        })}
+      </>
+    );
+  };
+
   // Add a function to extract image URL from a message
   const extractImageUrl = (content: string): string | undefined => {
+    // Try to match [Image 1: URL] format (Twilio format)
+    let match = content.match(/\[Image \d+: (.*?)\]/);
+    if (match && match[1]) {
+      return match[1];
+    }
+
     // Try to match [Image: URL] format
-    let match = content.match(/\[Image: (.*?)\]/);
+    match = content.match(/\[Image: (.*?)\]/);
     if (match && match[1]) {
       return match[1];
     }
@@ -686,6 +725,14 @@ const Chat = () => {
 
     // Try to match URL directly if it contains amazonaws
     if (content.includes("deepskygallery.s3.us-east-2.amazonaws.com")) {
+      match = content.match(/(https?:\/\/[^\s]+)/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+
+    // Try to match Twilio URLs directly
+    if (content.includes("api.twilio.com")) {
       match = content.match(/(https?:\/\/[^\s]+)/);
       if (match && match[1]) {
         return match[1];
@@ -826,9 +873,12 @@ const Chat = () => {
               msg.text &&
               typeof msg.text === "string" &&
               (msg.text.includes("Image attachment [Image:") ||
+                msg.text.includes("[Image 1:") ||
+                msg.text.match(/\[Image \d+:/) ||
                 msg.text.includes(
                   "deepskygallery.s3.us-east-2.amazonaws.com/eldrix"
                 ) ||
+                msg.text.includes("api.twilio.com") ||
                 msg.text.includes("![Image](https://") ||
                 msg.text.match(/!\[Image\]\(.*?\)/) ||
                 msg.text.match(/^!\[Image\]/) ||
@@ -841,15 +891,21 @@ const Chat = () => {
             // extract the URL from the text
             let imageUrl = msg.imageUrl;
             if (isImageUrlMessage && !imageUrl) {
-              // Try to match [Image: URL] format
-              let match = msg.text.match(/\[Image: (.*?)\]/);
+              // Try to match [Image 1: URL] format (Twilio format)
+              let match = msg.text.match(/\[Image \d+: (.*?)\]/);
               if (match && match[1]) {
                 imageUrl = match[1];
               } else {
-                // Try to match ![Image](URL) format
-                match = msg.text.match(/!\[Image\]\((.*?)\)/);
+                // Try to match [Image: URL] format
+                match = msg.text.match(/\[Image: (.*?)\]/);
                 if (match && match[1]) {
                   imageUrl = match[1];
+                } else {
+                  // Try to match ![Image](URL) format
+                  match = msg.text.match(/!\[Image\]\((.*?)\)/);
+                  if (match && match[1]) {
+                    imageUrl = match[1];
+                  }
                 }
               }
             }
@@ -868,7 +924,7 @@ const Chat = () => {
                       : "bg-[#2D3E50] text-white"
                   }`}
                 >
-                  <p className="text-sm">{displayText}</p>
+                  <p className="text-sm">{makeLinksClickable(displayText)}</p>
                   {imageUrl && (
                     <img
                       src={imageUrl}

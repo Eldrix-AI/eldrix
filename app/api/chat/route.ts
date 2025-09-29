@@ -96,8 +96,34 @@ export async function POST(request: Request) {
     let sessionId = helpSessionId;
     let currentSession = null;
 
-    // If no help session ID provided, create a new one
+    // If no help session ID provided, check for existing incomplete sessions
     if (!sessionId) {
+      // Get all existing help sessions for this user
+      const existingSessions = (await helpSessions.getHelpSessionsByUserId(
+        userId
+      )) as any[];
+
+      // Check if user has any incomplete sessions (pending, active, or open)
+      const incompleteSessions = existingSessions.filter(
+        (session) =>
+          session.status === "pending" ||
+          session.status === "active" ||
+          session.status === "ongoing" ||
+          session.status === "open"
+      );
+
+      if (incompleteSessions.length > 0) {
+        // User already has an active session, return error
+        return NextResponse.json(
+          {
+            error:
+              "You already have an active help session. Please complete or close your current session before starting a new one.",
+            existingSession: incompleteSessions[0], // Return the first incomplete session
+          },
+          { status: 409 } // Conflict status code
+        );
+      }
+
       sessionId = uuidv4();
 
       // Create a title from the message (truncated if necessary)

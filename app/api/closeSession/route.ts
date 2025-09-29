@@ -56,7 +56,10 @@ export async function POST(request: Request) {
 
     // Format messages for GPT prompt
     const formattedMessages = allMessages
-      .map((msg: { isAdmin: any; content: any; }) => `${msg.isAdmin ? "Support Agent" : "User"}: ${msg.content}`)
+      .map(
+        (msg: { isAdmin: any; content: any }) =>
+          `${msg.isAdmin ? "Support Agent" : "User"}: ${msg.content}`
+      )
       .join("\n\n");
 
     // Generate session recap using GPT-4o
@@ -105,6 +108,7 @@ export async function POST(request: Request) {
     // Update the help session
     const updatedSession = await helpSessions.updateHelpSession(helpSessionId, {
       completed: true,
+      status: "completed",
       sessionRecap,
       title: newTitle || helpSession.title,
     });

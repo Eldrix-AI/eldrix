@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { FaPhoneAlt, FaHandshake, FaShieldAlt } from "react-icons/fa"; // Font Awesome icons via react‑icons
+import { FaPhoneAlt, FaHandshake, FaShieldAlt, FaSms } from "react-icons/fa"; // Font Awesome icons via react‑icons
 
 export default function HomePage() {
   return (
@@ -45,6 +45,43 @@ export default function HomePage() {
           >
             Learn More
           </Link>
+        </div>
+      </section>
+
+      {/* Immediate Support Section */}
+      <section className="mt-16 w-full max-w-4xl">
+        <div className="bg-gradient-to-r from-[#2D3E50] to-[#24466d] rounded-2xl p-8 text-center text-white">
+          <div className="flex items-center justify-center mb-4">
+            <FaPhoneAlt className="text-3xl mr-3" />
+            <h2 className="text-2xl md:text-3xl font-bold">
+              Need Help Right Now?
+            </h2>
+          </div>
+          <p className="text-lg md:text-xl text-white/90 mb-6 max-w-2xl mx-auto">
+            Don't wait for an appointment or struggle alone. Our friendly tech
+            experts are standing by to help you right now—no hassle, no waiting.
+          </p>
+          <div className="flex flex-col gap-4 justify-center items-center">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link
+                href="tel:8886702766"
+                className="inline-flex items-center gap-2 rounded-lg bg-white text-[#2D3E50] font-bold px-8 py-4 text-lg transition hover:bg-[#F0F4F8] shadow-lg"
+              >
+                <FaPhoneAlt />
+                Call (888) 670-2766
+              </Link>
+              <Link
+                href="sms:8886702766"
+                className="inline-flex items-center gap-2 rounded-lg bg-white text-[#2D3E50] font-bold px-8 py-4 text-lg transition hover:bg-[#F0F4F8] shadow-lg"
+              >
+                <FaSms />
+                Text (888) 670-2766
+              </Link>
+            </div>
+            <span className="text-white/70 text-sm">
+              Available 24/7 • No appointment needed
+            </span>
+          </div>
         </div>
       </section>
 

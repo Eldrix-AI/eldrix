@@ -11,6 +11,8 @@ import {
   FaPhoneAlt,
   FaCheckCircle,
   FaSignInAlt,
+  FaGoogle,
+  FaApple,
 } from "react-icons/fa";
 
 export default function SignupPage() {
@@ -43,6 +45,17 @@ export default function SignupPage() {
     setForm((f) => ({ ...f, [name]: type === "checkbox" ? checked : value }));
     setErrors((er) => ({ ...er, [name]: "" }));
   }
+
+  const handleSocialLogin = async (provider: "google" | "apple") => {
+    try {
+      await signIn(provider, { callbackUrl: "/app/onboarding" });
+    } catch (error) {
+      setErrors((prev) => ({
+        ...prev,
+        form: `Failed to sign in with ${provider}`,
+      }));
+    }
+  };
 
   function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
     const { name, value } = e.target;
@@ -148,11 +161,7 @@ export default function SignupPage() {
 
       {/* form view */}
       <main className="min-h-screen bg-[#FDF9F4] flex justify-center items-center p-6">
-        <form
-          onSubmit={handleSubmit}
-          noValidate
-          className="w-full max-w-lg bg-white p-8 rounded-2xl shadow space-y-6"
-        >
+        <div className="w-full max-w-lg bg-white p-8 rounded-2xl shadow space-y-6">
           <h2 className="text-3xl font-extrabold text-[#2D3E50] text-center flex items-center justify-center gap-2">
             <FaUserPlus /> Create Account
           </h2>
@@ -160,50 +169,96 @@ export default function SignupPage() {
             <p className="text-red-500 text-center">{errors.form}</p>
           )}
 
-          {/* email */}
-          <InputField
-            icon={<FaEnvelope />}
-            label="Email"
-            name="email"
-            type="email"
-            value={form.email}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            error={errors.email}
-          />
+          {/* Social Login Buttons */}
+          <div className="space-y-3">
+            <button
+              onClick={() => handleSocialLogin("google")}
+              className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-semibold transition hover:bg-gray-50 hover:border-gray-400"
+            >
+              <FaGoogle className="text-red-500" size={20} />
+              Continue with Google
+            </button>
 
-          {/* passwords */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <PasswordField
-              label="Password"
-              name="password"
-              value={form.password}
-              show={showPassword}
-              setShow={setShowPassword}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={errors.password}
-            />
-            <PasswordField
-              label="Confirm Password"
-              name="confirmPassword"
-              value={form.confirmPassword}
-              show={showConfirm}
-              setShow={setShowConfirm}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={errors.confirmPassword}
-            />
+            <button
+              onClick={() => handleSocialLogin("apple")}
+              className="w-full flex items-center justify-center gap-3 bg-black text-white py-3 px-4 rounded-lg font-semibold transition hover:bg-gray-800"
+            >
+              <FaApple size={20} />
+              Continue with Apple
+            </button>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-[#2D3E50] text-white rounded-lg disabled:opacity-50"
-          >
-            {loading ? "Processing…" : "Create Account"}
-          </button>
-        </form>
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">
+                Or create account with email
+              </span>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} noValidate className="space-y-6">
+            {/* email */}
+            <InputField
+              icon={<FaEnvelope />}
+              label="Email"
+              name="email"
+              type="email"
+              value={form.email}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={errors.email}
+            />
+
+            {/* passwords */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <PasswordField
+                label="Password"
+                name="password"
+                value={form.password}
+                show={showPassword}
+                setShow={setShowPassword}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={errors.password}
+              />
+              <PasswordField
+                label="Confirm Password"
+                name="confirmPassword"
+                value={form.confirmPassword}
+                show={showConfirm}
+                setShow={setShowConfirm}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={errors.confirmPassword}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-[#2D3E50] text-white rounded-lg disabled:opacity-50"
+            >
+              {loading ? "Processing…" : "Create Account"}
+            </button>
+          </form>
+
+          {/* Login Link */}
+          <div className="text-center">
+            <p className="text-gray-600">
+              Already have an account?{" "}
+              <a
+                href="/login"
+                className="text-[#2D3E50] font-semibold hover:underline"
+              >
+                Log in
+              </a>
+            </p>
+          </div>
+        </div>
       </main>
     </>
   );
