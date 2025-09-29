@@ -86,24 +86,35 @@ export async function POST(request: Request) {
       TITLE:
     `;
 
-    // Get both recap and title in parallel
-    const [recapResponse, titleResponse] = await Promise.all([
-      openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: recapPrompt }],
-        max_tokens: 150,
-        temperature: 0.7,
-      }),
-      openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: titlePrompt }],
-        max_tokens: 25,
-        temperature: 0.7,
-      }),
-    ]);
+    // Try to get both recap and title in parallel, fallback on error
+    let sessionRecap = "Session closed by user";
+    let newTitle = helpSession.title;
 
-    const sessionRecap = recapResponse.choices[0].message.content?.trim();
-    const newTitle = titleResponse.choices[0].message.content?.trim();
+    try {
+      const [recapResponse, titleResponse] = await Promise.all([
+        openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: recapPrompt }],
+          max_tokens: 150,
+          temperature: 0.7,
+        }),
+        openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: titlePrompt }],
+          max_tokens: 25,
+          temperature: 0.7,
+        }),
+      ]);
+
+      sessionRecap =
+        recapResponse.choices[0].message.content?.trim() ||
+        "Session closed by user";
+      newTitle =
+        titleResponse.choices[0].message.content?.trim() || helpSession.title;
+    } catch (error) {
+      console.error("Error generating AI recap/title:", error);
+      // Use fallback values already set above
+    }
 
     // Update the help session
     const updatedSession = await helpSessions.updateHelpSession(helpSessionId, {

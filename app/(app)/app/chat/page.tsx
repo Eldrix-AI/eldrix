@@ -132,8 +132,12 @@ const Chat = () => {
           // Check if this is an image message
           const isImageMessage =
             (msg.content.includes("Image attachment") && msg.imageUrl) ||
-            msg.content.includes("deepskygallery.s3.us-east-2.amazonaws.com") ||
-            msg.content.includes("api.twilio.com") ||
+            msg.content.includes(
+              "deepskygallery.s3.us-east-2.amazonaws.com/eldrix"
+            ) ||
+            (msg.content.includes("api.twilio.com") &&
+              (msg.content.includes("[Image") ||
+                msg.content.includes("![Image]"))) ||
             msg.content.includes("[Image 1:") ||
             /\[Image \d+:/.test(msg.content) ||
             msg.content.includes("![Image]") ||
@@ -607,13 +611,19 @@ const Chat = () => {
 
       const messagesData = await messagesResponse.json();
 
+      console.log(messagesData);
+
       // Format messages for the UI
       const formattedMessages = messagesData.messages.map((msg: any) => {
         // Check if this is an image message
         const isImageMessage =
           (msg.content.includes("Image attachment") && msg.imageUrl) ||
-          msg.content.includes("deepskygallery.s3.us-east-2.amazonaws.com") ||
-          msg.content.includes("api.twilio.com") ||
+          msg.content.includes(
+            "deepskygallery.s3.us-east-2.amazonaws.com/eldrix"
+          ) ||
+          (msg.content.includes("api.twilio.com") &&
+            (msg.content.includes("[Image") ||
+              msg.content.includes("![Image]"))) ||
           msg.content.includes("[Image 1:") ||
           /\[Image \d+:/.test(msg.content) ||
           msg.content.includes("![Image]") ||
@@ -878,7 +888,9 @@ const Chat = () => {
                 msg.text.includes(
                   "deepskygallery.s3.us-east-2.amazonaws.com/eldrix"
                 ) ||
-                msg.text.includes("api.twilio.com") ||
+                (msg.text.includes("api.twilio.com") &&
+                  (msg.text.includes("[Image") ||
+                    msg.text.includes("![Image]"))) ||
                 msg.text.includes("![Image](https://") ||
                 msg.text.match(/!\[Image\]\(.*?\)/) ||
                 msg.text.match(/^!\[Image\]/) ||
@@ -924,13 +936,14 @@ const Chat = () => {
                       : "bg-[#2D3E50] text-white"
                   }`}
                 >
-                  <p className="text-sm">{makeLinksClickable(displayText)}</p>
-                  {imageUrl && (
+                  {imageUrl ? (
                     <img
                       src={imageUrl}
                       alt="Uploaded content"
-                      className="mt-2 rounded-lg max-h-60 w-auto"
+                      className="rounded-lg max-h-60 w-auto"
                     />
+                  ) : (
+                    <p className="text-sm">{makeLinksClickable(displayText)}</p>
                   )}
                   <div className="flex justify-between items-center mt-1">
                     <p className="text-xs opacity-70">
