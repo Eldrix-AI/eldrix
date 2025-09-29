@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../../../components/Sidebar";
 import { FaPaperPlane, FaImage, FaPhoneAlt, FaSms } from "react-icons/fa";
 import SessionsSidebar from "../../../components/SessionsSidebar";
@@ -35,6 +36,8 @@ interface ApiMessage {
 
 const Chat = () => {
   const { data: session } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([
@@ -60,6 +63,7 @@ const Chat = () => {
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [hasActiveSession, setHasActiveSession] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const processedMessageIds = useRef(new Set<string>());
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -85,19 +89,20 @@ const Chat = () => {
 
   useEffect(() => {
     // Set up message checking interval if we have a help session ID
+    // But ONLY check for admin messages, never add user messages from polling
     if (helpSessionId && session && !isClosed) {
       // Clear any existing interval
       if (checkInterval.current) {
         clearInterval(checkInterval.current);
       }
 
-      // Set up periodic checking for new messages
-      checkInterval.current = setInterval(() => {
-        checkForNewMessages();
-      }, 5000); // Check every 5 seconds
+      // Do an initial check when the session changes
+      checkForAdminMessages();
 
-      // Initial check
-      checkForNewMessages();
+      // Set up periodic checking for new admin messages only
+      checkInterval.current = setInterval(() => {
+        checkForAdminMessages();
+      }, 5000); // Check every 5 seconds
     }
 
     // Cleanup interval on unmount or when help session changes
@@ -109,6 +114,8 @@ const Chat = () => {
     };
   }, [helpSessionId, session, isClosed]);
 
+  // This function is used when we need to check for ALL messages (including user messages)
+  // Used when first loading a session or after sending a message
   const checkForNewMessages = async () => {
     if (!helpSessionId || isClosed) return;
 
@@ -156,22 +163,144 @@ const Chat = () => {
           };
         });
 
-        // Add only messages we don't already have using ID tracking
-        setMessages((prev) => {
-          const existingIds = new Set(prev.map((m: Message) => m.id));
-          const uniqueNewMessages = newMessages.filter(
-            (msg: Message) => !existingIds.has(msg.id)
-          );
-          return uniqueNewMessages.length > 0
-            ? [...prev, ...uniqueNewMessages]
-            : prev;
+        console.log("Received unread messages:", data.unreadMessages.length);
+
+        // Get all current message IDs for deduplication
+        const currentMessageIds = new Set(messages.map((msg) => msg.id));
+
+        // Filter out messages we already have in our UI
+        const uniqueMessages = newMessages.filter(
+          (msg: Message) => !currentMessageIds.has(msg.id)
+        );
+
+        console.log("Messages after UI deduplication:", uniqueMessages.length);
+
+        // Filter out messages that are in our processed set
+        const notProcessedMessages = uniqueMessages.filter(
+          (msg: Message) => !processedMessageIds.current.has(msg.id)
+        );
+
+        console.log(
+          "Messages after processed set check:",
+          notProcessedMessages.length
+        );
+
+        // Filter out user messages that were sent in the last 30 seconds
+        const messagesToAdd = notProcessedMessages.filter(
+          (msg: Message) =>
+            msg.sender !== "user" ||
+            Date.now() - msg.timestamp.getTime() > 30000
+        );
+
+        console.log("Messages after time filter:", messagesToAdd.length);
+
+        // Add all these messages to our processed set
+        messagesToAdd.forEach((msg: Message) => {
+          processedMessageIds.current.add(msg.id);
         });
 
-        // Mark messages as read in the database ONLY if they are admin messages
-        // We should NOT mark user messages as read since that should happen on the admin side
-        const adminMessageIds = data.unreadMessages
-          .filter((msg: ApiMessage) => msg.isAdmin)
-          .map((msg: ApiMessage) => msg.id);
+        // Only update state if we have new messages
+        if (messagesToAdd.length > 0) {
+          setMessages((prev) => [...prev, ...messagesToAdd]);
+        }
+
+        processAdminMessages(data);
+      }
+    } catch (error) {
+      console.error("Error checking for new messages:", error);
+    }
+  };
+
+  // This function is ONLY used for polling and ONLY looks for admin messages
+  const checkForAdminMessages = async () => {
+    if (!helpSessionId || isClosed) return;
+
+    try {
+      const response = await fetch(
+        `/api/checkMessages?helpSessionId=${helpSessionId}`
+      );
+      if (!response.ok) return;
+
+      const data = await response.json();
+
+      // Update session status if different
+      if (data.sessionStatus && sessionStatus !== data.sessionStatus) {
+        setSessionStatus(data.sessionStatus);
+      }
+
+      processAdminMessages(data);
+    } catch (error) {
+      console.error("Error checking for admin messages:", error);
+    }
+  };
+
+  // Helper function to process admin messages
+  const processAdminMessages = async (data: any) => {
+    // If there are unread messages, look for admin messages only
+    if (data.unreadMessages && data.unreadMessages.length > 0) {
+      // Filter to only include admin messages
+      const adminMessages = data.unreadMessages.filter(
+        (msg: ApiMessage) => msg.isAdmin
+      );
+
+      if (adminMessages.length > 0) {
+        console.log("Found admin messages:", adminMessages.length);
+
+        // Convert admin messages to our format
+        const formattedAdminMessages = adminMessages.map((msg: ApiMessage) => {
+          // Check if this is an image message
+          const isImageMessage =
+            (msg.content.includes("Image attachment") && msg.imageUrl) ||
+            msg.content.includes(
+              "deepskygallery.s3.us-east-2.amazonaws.com/eldrix"
+            ) ||
+            (msg.content.includes("api.twilio.com") &&
+              (msg.content.includes("[Image") ||
+                msg.content.includes("![Image]"))) ||
+            msg.content.includes("[Image 1:") ||
+            /\[Image \d+:/.test(msg.content) ||
+            msg.content.includes("![Image]") ||
+            msg.content.startsWith("!") ||
+            /!\[Image\]\(.*?\)/.test(msg.content);
+
+          return {
+            id: msg.id,
+            text: isImageMessage ? "Attached Image" : msg.content,
+            sender: "assistant",
+            timestamp: new Date(msg.createdAt),
+            status: msg.read ? "read" : "delivered",
+            imageUrl:
+              msg.imageUrl ||
+              (isImageMessage ? extractImageUrl(msg.content) : undefined),
+          };
+        });
+
+        // Get all current message IDs for deduplication
+        const currentMessageIds = new Set(messages.map((msg) => msg.id));
+
+        // Filter out messages we already have in our UI
+        const messagesToAdd = formattedAdminMessages.filter(
+          (msg: Message) =>
+            !currentMessageIds.has(msg.id) &&
+            !processedMessageIds.current.has(msg.id)
+        );
+
+        console.log("Admin messages to add:", messagesToAdd.length);
+
+        // Add these messages to our processed set
+        messagesToAdd.forEach((msg: Message) => {
+          processedMessageIds.current.add(msg.id);
+        });
+
+        // Only update state if we have new admin messages
+        if (messagesToAdd.length > 0) {
+          setMessages((prev) => [...prev, ...messagesToAdd]);
+
+          // Play a sound or notification here if you want
+        }
+
+        // Mark admin messages as read in the database
+        const adminMessageIds = adminMessages.map((msg: ApiMessage) => msg.id);
 
         if (adminMessageIds.length > 0) {
           await fetch("/api/checkMessages", {
@@ -184,8 +313,6 @@ const Chat = () => {
           });
         }
       }
-    } catch (error) {
-      console.error("Error checking for new messages:", error);
     }
   };
 
@@ -221,6 +348,9 @@ const Chat = () => {
       timestamp: new Date(),
       status: "sending" as const,
     };
+
+    // Add to processed IDs to prevent duplicates
+    processedMessageIds.current.add(userMessage.id);
 
     setMessages((prev) => [...prev, userMessage]);
     setMessage("");
@@ -260,9 +390,19 @@ const Chat = () => {
 
       // Store the help session ID for future messages
       if (data.session && data.session.id) {
-        setHelpSessionId(data.session.id);
+        const newSessionId = data.session.id;
+        setHelpSessionId(newSessionId);
+
+        // Update URL with the new session ID
+        router.push(`/app/chat?id=${newSessionId}`);
+
         // Refresh sessions list to show the new session
         fetchUserSessions();
+
+        // Manually check for new messages once
+        setTimeout(() => {
+          checkForNewMessages();
+        }, 1000);
       }
 
       // Only show the "thank you" message if this is the first message in a new session
@@ -341,6 +481,9 @@ const Chat = () => {
       status: "sending" as const,
     };
 
+    // Add to processed IDs to prevent duplicates
+    processedMessageIds.current.add(imageMessage.id);
+
     setMessages((prev) => [...prev, imageMessage]);
     setIsLoading(true);
 
@@ -383,9 +526,19 @@ const Chat = () => {
 
       // Store the help session ID for future messages
       if (data.session && data.session.id) {
-        setHelpSessionId(data.session.id);
+        const newSessionId = data.session.id;
+        setHelpSessionId(newSessionId);
+
+        // Update URL with the new session ID
+        router.push(`/app/chat?id=${newSessionId}`);
+
         // Refresh sessions list to show the new session
         fetchUserSessions();
+
+        // Manually check for new messages once
+        setTimeout(() => {
+          checkForNewMessages();
+        }, 1000);
       }
 
       // Only show the automated response for first message
@@ -529,12 +682,27 @@ const Chat = () => {
     }
   };
 
+  // Check for session ID in URL query params
+  useEffect(() => {
+    // Get session ID from URL if available
+    const sessionIdFromUrl = searchParams.get("id");
+
+    if (sessionIdFromUrl && sessionIdFromUrl !== helpSessionId) {
+      // If we have a session ID in the URL, select that session
+      console.log("Loading session from URL param:", sessionIdFromUrl);
+      processedMessageIds.current.clear();
+      setHelpSessionId(sessionIdFromUrl);
+      handleSelectSession(sessionIdFromUrl);
+    }
+  }, [searchParams]);
+
   // Call fetchUserSessions in a useEffect
   useEffect(() => {
     if (session?.user?.id) {
       fetchUserSessions().then(() => {
-        // Auto-select most recent active session if no session is currently selected
-        if (!helpSessionId) {
+        // Only auto-select if no session ID in URL and no current session
+        const sessionIdFromUrl = searchParams.get("id");
+        if (!sessionIdFromUrl && !helpSessionId) {
           autoSelectActiveSession();
         }
       });
@@ -551,6 +719,8 @@ const Chat = () => {
       // If there's an active session, select it
       if (activeSession) {
         console.log("Auto-selecting active session:", activeSession.id);
+        // Clear processed message IDs when selecting a new session
+        processedMessageIds.current.clear();
         handleSelectSession(activeSession.id);
       } else {
         // If no active session, select the most recent one
@@ -561,6 +731,8 @@ const Chat = () => {
 
         if (mostRecent) {
           console.log("Auto-selecting most recent session:", mostRecent.id);
+          // Clear processed message IDs when selecting a new session
+          processedMessageIds.current.clear();
           handleSelectSession(mostRecent.id);
         }
       }
@@ -576,6 +748,12 @@ const Chat = () => {
     setIsFirstMessage(false);
     setSessionStatus(null);
     setIsClosed(false);
+
+    // Clear processed message IDs when selecting a new session
+    processedMessageIds.current.clear();
+
+    // Update URL with the session ID
+    router.push(`/app/chat?id=${sessionId}`);
 
     // Load the selected session
     try {
@@ -673,6 +851,12 @@ const Chat = () => {
     setIsFirstMessage(true);
     setIsClosed(false);
     setSessionRecap(null);
+
+    // Clear processed message IDs when starting a new chat
+    processedMessageIds.current.clear();
+
+    // Update URL to remove session ID
+    router.push("/app/chat");
 
     // Reset messages to just the welcome message
     setMessages([

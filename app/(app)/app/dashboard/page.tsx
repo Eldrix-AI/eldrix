@@ -16,6 +16,7 @@ import {
   FaArrowRight,
   FaPhone,
   FaLaptop,
+  FaStar,
 } from "react-icons/fa";
 import { format } from "date-fns";
 
@@ -27,6 +28,9 @@ interface UserData {
   phone: string;
   description?: string;
   experienceLevel?: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  stripeUsageId?: string;
 }
 
 interface Stats {
@@ -53,6 +57,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentChats, setRecentChats] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFreeUser, setIsFreeUser] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -64,6 +69,11 @@ const Dashboard = () => {
           const userRes = await fetch(`/api/getUser?userId=${session.user.id}`);
           const userData = await userRes.json();
           setUserData(userData);
+
+          // Check if user has any subscription
+          const hasSubscription =
+            userData.stripeSubscriptionId || userData.stripeUsageId;
+          setIsFreeUser(!hasSubscription);
 
           // Fetch history/stats data
           const historyRes = await fetch("/api/getUserHistory");
@@ -195,13 +205,35 @@ const Dashboard = () => {
               </p>
             </div>
 
-            <div className="mt-4 md:mt-0">
+            <div className="mt-4 md:mt-0 flex flex-col sm:flex-row gap-2">
               <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-blue-700">
                 <FaBell className="mr-2 h-4 w-4" />
                 <span className="text-sm font-medium">
                   {stats?.weeklyRemaining} chats left this week
                 </span>
               </div>
+
+              {/* Subscription Management Button */}
+              <Link
+                href="/app/plans"
+                className={`inline-flex items-center px-4 py-2 rounded-lg font-semibold text-sm transition ${
+                  isFreeUser
+                    ? "bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
+                    : "bg-gradient-to-r from-[#2D3E50] to-[#24466d] text-white hover:from-[#24466d] hover:to-[#1a2f47]"
+                }`}
+              >
+                {isFreeUser ? (
+                  <>
+                    <FaStar className="mr-2 h-4 w-4" />
+                    Upgrade Plan
+                  </>
+                ) : (
+                  <>
+                    <FaCog className="mr-2 h-4 w-4" />
+                    Manage Plan
+                  </>
+                )}
+              </Link>
             </div>
           </div>
 
@@ -232,6 +264,32 @@ const Dashboard = () => {
             </div>
           </Link>
         </div>
+
+        {/* Subscription Status Card */}
+        {isFreeUser && (
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-[#2D3E50] mb-1">
+                  You're on the Free Plan
+                </h3>
+                <p className="text-gray-600 text-sm mb-3">
+                  Get unlimited chats and priority support with our paid plans
+                </p>
+                <Link
+                  href="/app/plans"
+                  className="inline-flex items-center bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition"
+                >
+                  <FaStar className="mr-2 h-4 w-4" />
+                  View Plans & Upgrade
+                </Link>
+              </div>
+              <div className="hidden md:block">
+                <div className="text-6xl text-green-200">🚀</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Section */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

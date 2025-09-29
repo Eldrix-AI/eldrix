@@ -67,6 +67,10 @@ export async function GET(request: Request) {
       darkMode: !!user.darkMode,
       emailList: !!user.emailList,
       smsConsent: !!user.smsConsent,
+      // Include Stripe fields
+      stripeCustomerId: user.stripeCustomerId || null,
+      stripeSubscriptionId: user.stripeSubscriptionId || null,
+      stripeUsageId: user.stripeUsageId || null,
     };
 
     console.log(userData);

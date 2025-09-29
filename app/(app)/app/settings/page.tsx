@@ -3,6 +3,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Sidebar from "../../../components/Sidebar";
 import { toast } from "react-hot-toast";
+import Link from "next/link";
+import { FaStar, FaCog, FaCrown } from "react-icons/fa";
 
 interface UserData {
   id: string;
@@ -20,6 +22,25 @@ interface UserData {
   darkMode?: boolean;
   emailList?: boolean;
   smsConsent?: boolean;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  stripeUsageId?: string;
+}
+
+interface UpcomingInvoice {
+  amountDue: number;
+  currency: string;
+  nextPaymentAttempt: string | null;
+  lineItems: Array<{
+    description: string;
+    amount: number;
+    quantity: number;
+    period: {
+      start: string;
+      end: string;
+    };
+  }>;
+  invoiceId: string | null;
 }
 
 const Settings = () => {
@@ -31,6 +52,10 @@ const Settings = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [isFreeUser, setIsFreeUser] = useState(true);
+  const [upcomingInvoice, setUpcomingInvoice] =
+    useState<UpcomingInvoice | null>(null);
+  const [isPayAsYouGo, setIsPayAsYouGo] = useState(false);
 
   const fetchUserData = useCallback(async () => {
     try {
@@ -38,6 +63,29 @@ const Settings = () => {
       const res = await fetch(`/api/getUser?userId=${session?.user?.id}`);
       const data = await res.json();
       setUserData(data);
+
+      // Check if user has any subscription
+      const hasSubscription = data.stripeSubscriptionId || data.stripeUsageId;
+      setIsFreeUser(!hasSubscription);
+
+      // Check if user is on Pay As You Go (has BOTH stripeUsageId AND stripeSubscriptionId)
+      const isPayGo = data.stripeUsageId && data.stripeSubscriptionId;
+      setIsPayAsYouGo(isPayGo);
+
+      // If user is on Pay As You Go, fetch upcoming invoice
+      if (isPayGo && data.stripeCustomerId && data.stripeSubscriptionId) {
+        try {
+          const invoiceRes = await fetch(
+            `/api/getUpcomingInvoice?customerId=${data.stripeCustomerId}&subscriptionId=${data.stripeSubscriptionId}`
+          );
+          if (invoiceRes.ok) {
+            const invoiceData = await invoiceRes.json();
+            setUpcomingInvoice(invoiceData);
+          }
+        } catch (error) {
+          console.error("Error fetching upcoming invoice:", error);
+        }
+      }
 
       // Parse techUsage JSON string to array
       if (data.techUsage) {
@@ -208,7 +256,7 @@ const Settings = () => {
     <div className="flex h-screen">
       <Sidebar
         name={userData.name}
-        profilePictureUrl={userData.imageUrl || "/default-avatar.png"}
+        profilePictureUrl={userData.imageUrl}
         phoneNumber={userData.phone}
       />
       <div className="flex-1 p-6 bg-[#FDF9F4] overflow-y-auto">
@@ -236,6 +284,26 @@ const Settings = () => {
                       }
                       alt={userData.name}
                       className="w-full h-full rounded-full object-cover border-4 border-[#2D3E50]/20"
+                      onError={(e) => {
+                        // Fallback to initials if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                        const parent = target.parentElement;
+                        if (parent) {
+                          parent.innerHTML = `
+                            <div class="w-full h-full rounded-full bg-[#2D3E50] text-white font-semibold flex items-center justify-center text-2xl">
+                              ${
+                                userData.name
+                                  ?.split(" ")
+                                  .map((n) => n[0])
+                                  .join("")
+                                  .toUpperCase()
+                                  .slice(0, 2) || "U"
+                              }
+                            </div>
+                          `;
+                        }
+                      }}
                     />
                     <label
                       htmlFor="profile-image-upload"
@@ -597,6 +665,150 @@ const Settings = () => {
                     />
                   </button>
                 </div>
+              </div>
+            </section>
+
+            {/* Subscription Management Section */}
+            <section className="bg-white p-6 rounded-lg shadow-sm">
+              <h2 className="text-xl font-semibold text-[#2D3E50] mb-4">
+                Subscription & Billing
+              </h2>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <h3 className="font-medium text-[#2D3E50] mb-1">
+                      {isFreeUser
+                        ? "Free Plan"
+                        : isPayAsYouGo
+                        ? "Pay As You Go"
+                        : "Active Subscription"}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {isFreeUser
+                        ? "You're currently on our free plan with 3 sessions per month"
+                        : isPayAsYouGo
+                        ? "You're on Pay As You Go - pay only for sessions you use"
+                        : "Manage your subscription and billing preferences"}
+                    </p>
+                  </div>
+                  <Link
+                    href="/app/plans"
+                    className={`inline-flex items-center px-4 py-2 rounded-lg font-semibold text-sm transition ${
+                      isFreeUser
+                        ? "bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
+                        : "bg-gradient-to-r from-[#2D3E50] to-[#24466d] text-white hover:from-[#24466d] hover:to-[#1a2f47]"
+                    }`}
+                  >
+                    {isFreeUser ? (
+                      <>
+                        <FaStar className="mr-2 h-4 w-4" />
+                        Upgrade Plan
+                      </>
+                    ) : (
+                      <>
+                        <FaCog className="mr-2 h-4 w-4" />
+                        Manage Plan
+                      </>
+                    )}
+                  </Link>
+                </div>
+
+                {/* Pay As You Go Billing Information */}
+                {isPayAsYouGo && upcomingInvoice && (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <FaCog className="text-blue-500 text-xl mt-1 mr-3 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h4 className="font-medium text-[#2D3E50] mb-2">
+                          Current Usage & Upcoming Bill
+                        </h4>
+
+                        {upcomingInvoice.amountDue > 0 ? (
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">
+                                Amount due this billing period:
+                              </span>
+                              <span className="font-semibold text-lg text-[#2D3E50]">
+                                ${upcomingInvoice.amountDue.toFixed(2)}{" "}
+                                {upcomingInvoice.currency}
+                              </span>
+                            </div>
+
+                            {upcomingInvoice.nextPaymentAttempt && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-gray-600">
+                                  Next billing date:
+                                </span>
+                                <span className="text-sm text-gray-800">
+                                  {new Date(
+                                    upcomingInvoice.nextPaymentAttempt
+                                  ).toLocaleDateString()}
+                                </span>
+                              </div>
+                            )}
+
+                            {upcomingInvoice.lineItems.length > 0 && (
+                              <div className="mt-3">
+                                <p className="text-sm font-medium text-gray-700 mb-2">
+                                  Usage breakdown:
+                                </p>
+                                <div className="space-y-1">
+                                  {upcomingInvoice.lineItems.map(
+                                    (item, index) => (
+                                      <div
+                                        key={index}
+                                        className="flex justify-between text-sm"
+                                      >
+                                        <span className="text-gray-600">
+                                          {item.description} (×{item.quantity})
+                                        </span>
+                                        <span className="text-gray-800">
+                                          ${item.amount.toFixed(2)}
+                                        </span>
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-600">
+                            No charges for this billing period. You'll only be
+                            charged when you use additional sessions beyond your
+                            free allowance.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {isFreeUser && (
+                  <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <FaCrown className="text-green-500 text-xl mt-1 mr-3 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-medium text-[#2D3E50] mb-1">
+                          Unlock Premium Features
+                        </h4>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Get unlimited chats, priority support, and skip the
+                          queue with our paid plans.
+                        </p>
+                        <Link
+                          href="/app/plans"
+                          className="inline-flex items-center bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition"
+                        >
+                          <FaStar className="mr-2 h-4 w-4" />
+                          View All Plans
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
 
