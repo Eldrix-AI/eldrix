@@ -1,14 +1,13 @@
-import mysql from "mysql2/promise";
+import pkg from "pg";
+const { Pool } = pkg;
 
 // Create a connection pool
-const pool = mysql.createPool({
-  host:
-    process.env.DB_HOST || "eldrix.c3u0owce2vpi.us-east-2.rds.amazonaws.com",
-  user: process.env.DB_USER || "admin",
-  password: process.env.DB_PASSWORD || "B99U7lu2sYcOzCk1HWSG",
-  database: process.env.DB_NAME || "eldrix-prod",
-  port: parseInt(process.env.DB_PORT || "3306"),
-  connectionLimit: 10,
+const pool = new Pool({
+  connectionString:
+    process.env.DATABASE_URL ||
+    "postgresql://neondb_owner:npg_R4PlognbL8qm@ep-winter-river-adogkt3g-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require",
+  ssl: { rejectUnauthorized: false },
+  max: 10,
 });
 
 /**
@@ -22,8 +21,8 @@ async function query(sql, params = []) {
     console.log("SQL:", sql);
     console.log("Params:", JSON.stringify(safeParams));
 
-    const [rows] = await pool.execute(sql, safeParams);
-    return rows;
+    const result = await pool.query(sql, safeParams);
+    return result.rows;
   } catch (error) {
     console.error("Database query error:", error);
     throw error;
@@ -38,9 +37,12 @@ async function query(sql, params = []) {
  */
 export async function deleteById(tableName, id) {
   try {
-    const result = await query(`DELETE FROM ${tableName} WHERE id = ?`, [id]);
-    console.log(`Deleted from ${tableName} with ID ${id}:`, result);
-    return result.affectedRows > 0;
+    const result = await pool.query(
+      `DELETE FROM "${tableName}" WHERE id = $1`,
+      [id]
+    );
+    console.log(`Deleted from ${tableName} with ID ${id}:`, result.rowCount);
+    return result.rowCount > 0;
   } catch (error) {
     console.error(`Error deleting from ${tableName}:`, error);
     throw error;
@@ -59,13 +61,13 @@ export async function deleteMultipleByIds(tableName, ids) {
   }
 
   try {
-    const placeholders = ids.map(() => "?").join(",");
-    const result = await query(
-      `DELETE FROM ${tableName} WHERE id IN (${placeholders})`,
+    const placeholders = ids.map((_, idx) => `$${idx + 1}`).join(",");
+    const result = await pool.query(
+      `DELETE FROM "${tableName}" WHERE id IN (${placeholders})`,
       ids
     );
-    console.log(`Deleted ${result.affectedRows} records from ${tableName}`);
-    return result.affectedRows;
+    console.log(`Deleted ${result.rowCount} records from ${tableName}`);
+    return result.rowCount;
   } catch (error) {
     console.error(`Error deleting from ${tableName}:`, error);
     throw error;
@@ -81,14 +83,14 @@ export async function deleteMultipleByIds(tableName, ids) {
  */
 export async function deleteWhere(tableName, whereClause, params = []) {
   try {
-    const result = await query(
-      `DELETE FROM ${tableName} WHERE ${whereClause}`,
+    const result = await pool.query(
+      `DELETE FROM "${tableName}" WHERE ${whereClause}`,
       params
     );
     console.log(
-      `Deleted ${result.affectedRows} records from ${tableName} where ${whereClause}`
+      `Deleted ${result.rowCount} records from ${tableName} where ${whereClause}`
     );
-    return result.affectedRows;
+    return result.rowCount;
   } catch (error) {
     console.error(`Error deleting from ${tableName}:`, error);
     throw error;

@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../lib/auth";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { put } from "@vercel/blob";
 
-// Configure AWS S3 client
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
-  },
-});
+// Expect BLOB_READ_WRITE_TOKEN in env
+const BLOB_TOKEN =
+  process.env.BLOB_READ_WRITE_TOKEN || process.env.blob_READ_WRITE_TOKEN || "";
 
 export async function POST(request: Request) {
   try {
@@ -44,33 +39,28 @@ export async function POST(request: Request) {
       );
     }
 
-    // Convert file to ArrayBuffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    if (!BLOB_TOKEN) {
+      return NextResponse.json(
+        { error: "Missing BLOB_READ_WRITE_TOKEN" },
+        { status: 500 }
+      );
+    }
 
-    // Generate a unique filename
-    const fileExtension = file.name.split(".").pop();
+    // Generate a unique filename and path
+    const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";
     const fileName = `${Date.now()}-${Math.random()
       .toString(36)
-      .substring(2, 15)}.${fileExtension}`;
+      .slice(2, 12)}.${ext}`;
+    const blobPath = `eldrix/${fileName}`;
 
-    // Path in S3 bucket (using eldrix folder as specified)
-    const s3Key = `eldrix/${fileName}`;
+    // Upload to Vercel Blob
+    const { url } = await put(blobPath, file, {
+      access: "public",
+      token: BLOB_TOKEN,
+      contentType: file.type || "application/octet-stream",
+    });
 
-    // Upload to S3
-    const uploadParams = {
-      Bucket: process.env.AWS_BUCKET_NAME || "",
-      Key: s3Key,
-      Body: buffer,
-      ContentType: file.type,
-    };
-
-    await s3Client.send(new PutObjectCommand(uploadParams));
-
-    // Create the S3 URL
-    const s3Url = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
-
-    return NextResponse.json({ url: s3Url });
+    return NextResponse.json({ url });
   } catch (error) {
     console.error("Error uploading image:", error);
     return NextResponse.json(

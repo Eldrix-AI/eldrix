@@ -1,23 +1,18 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../lib/auth";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { put } from "@vercel/blob";
 import { v4 as uuidv4 } from "uuid";
 import { helpSessions, messages } from "../../../db/index.mjs";
 import Stripe from "stripe";
 
 export const dynamic = "force-dynamic";
 
-// Configure AWS S3 client
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
-  },
-});
+// Vercel Blob token
+const BLOB_TOKEN =
+  process.env.BLOB_READ_WRITE_TOKEN || process.env.blob_READ_WRITE_TOKEN || "";
 
-// Function to upload image to S3
+// Function to upload image to Vercel Blob
 async function uploadImageToS3(file: File) {
   // Convert file to ArrayBuffer
   const arrayBuffer = await file.arrayBuffer();
@@ -28,22 +23,14 @@ async function uploadImageToS3(file: File) {
   const fileName = `${Date.now()}-${Math.random()
     .toString(36)
     .substring(2, 15)}.${fileExtension}`;
-
-  // Path in S3 bucket
-  const s3Key = `eldrix/chat-images/${fileName}`;
-
-  // Upload to S3
-  const uploadParams = {
-    Bucket: process.env.AWS_BUCKET_NAME || "",
-    Key: s3Key,
-    Body: buffer,
-    ContentType: file.type,
-  };
-
-  await s3Client.send(new PutObjectCommand(uploadParams));
-
-  // Create and return the S3 URL
-  return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
+  const blobPath = `eldrix/chat-images/${fileName}`;
+  if (!BLOB_TOKEN) throw new Error("Missing BLOB_READ_WRITE_TOKEN");
+  const { url } = await put(blobPath, buffer, {
+    access: "public",
+    token: BLOB_TOKEN,
+    contentType: file.type,
+  });
+  return url;
 }
 
 export async function POST(request: Request) {
@@ -59,7 +46,7 @@ export async function POST(request: Request) {
     // Get user data to check subscription status
     const { query } = await import("../../../lib/db");
     const [userData] = (await query(
-      "SELECT stripeSubscriptionId, stripeUsageId, stripeCustomerId FROM User WHERE id = ?",
+      'SELECT "stripeSubscriptionId", "stripeUsageId", "stripeCustomerId" FROM "User" WHERE id = $1',
       [userId]
     )) as any;
 

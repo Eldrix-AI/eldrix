@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
           // Clear the subscription ID from user but DON'T return early
           // We need to continue to create the Pay As You Go checkout
           await query(
-            "UPDATE User SET stripeSubscriptionId = NULL WHERE id = ?",
+            'UPDATE "User" SET "stripeSubscriptionId" = NULL WHERE id = $1',
             [userId]
           );
 
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
 
       // Always clear the usage ID when switching to a subscription plan
       // This handles both cases: free->subscription and paygo->subscription
-      await query("UPDATE User SET stripeUsageId = NULL WHERE id = ?", [
+      await query('UPDATE "User" SET "stripeUsageId" = NULL WHERE id = $1', [
         userId,
       ]);
     }

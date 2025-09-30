@@ -81,17 +81,17 @@ async function handleCheckoutSessionCompleted(
 
   try {
     // Update user with Stripe customer ID
-    await query("UPDATE User SET stripeCustomerId = ? WHERE id = ?", [
+    await query('UPDATE "User" SET "stripeCustomerId" = $1 WHERE id = $2', [
       customerId,
       userId,
     ]);
 
     if (session.mode === "subscription" && session.subscription) {
       // Handle subscription
-      await query("UPDATE User SET stripeSubscriptionId = ? WHERE id = ?", [
-        session.subscription as string,
-        userId,
-      ]);
+      await query(
+        'UPDATE "User" SET "stripeSubscriptionId" = $1 WHERE id = $2',
+        [session.subscription as string, userId]
+      );
 
       // Insert into StripeSubscription table
       const subscription = await stripe.subscriptions.retrieve(
@@ -105,16 +105,16 @@ async function handleCheckoutSessionCompleted(
       if (isPlanPaygo) {
         // Get the subscription item ID (si_...) which is needed for usage reporting
         const subscriptionItem = subscription.items.data[0];
-        await query("UPDATE User SET stripeUsageId = ? WHERE id = ?", [
+        await query('UPDATE "User" SET "stripeUsageId" = $1 WHERE id = $2', [
           subscriptionItem.id, // This is the si_... ID needed for usage-based billing
           userId,
         ]);
       }
 
       await query(
-        `INSERT INTO StripeSubscription 
-         (id, userId, stripeSubscriptionId, stripeCustomerId, status, planType, priceId, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO "StripeSubscription" 
+         (id, "userId", "stripeSubscriptionId", "stripeCustomerId", status, "planType", "priceId", "currentPeriodStart", "currentPeriodEnd", "cancelAtPeriodEnd")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
           crypto.randomUUID(),
           userId,
@@ -130,7 +130,7 @@ async function handleCheckoutSessionCompleted(
       );
     } else if (session.mode === "payment") {
       // Handle one-time payment (pay-as-you-go)
-      await query("UPDATE User SET stripeUsageId = ? WHERE id = ?", [
+      await query('UPDATE "User" SET "stripeUsageId" = $1 WHERE id = $2', [
         session.payment_intent as string,
         userId,
       ]);
@@ -145,9 +145,9 @@ async function handleCheckoutSessionCompleted(
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   try {
     await query(
-      `UPDATE StripeSubscription 
-       SET status = ?, currentPeriodStart = ?, currentPeriodEnd = ?, cancelAtPeriodEnd = ?, updatedAt = NOW()
-       WHERE stripeSubscriptionId = ?`,
+      `UPDATE "StripeSubscription" 
+       SET status = $1, "currentPeriodStart" = $2, "currentPeriodEnd" = $3, "cancelAtPeriodEnd" = $4, "updatedAt" = now()
+       WHERE "stripeSubscriptionId" = $5`,
       [
         subscription.status,
         new Date(subscription.items.data[0].current_period_start * 1000),
@@ -167,13 +167,13 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   try {
     // Remove subscription from user
     await query(
-      "UPDATE User SET stripeSubscriptionId = NULL WHERE stripeSubscriptionId = ?",
+      'UPDATE "User" SET "stripeSubscriptionId" = NULL WHERE "stripeSubscriptionId" = $1',
       [subscription.id]
     );
 
     // Update subscription status
     await query(
-      "UPDATE StripeSubscription SET status = 'canceled', updatedAt = NOW() WHERE stripeSubscriptionId = ?",
+      'UPDATE "StripeSubscription" SET status = \'canceled\', "updatedAt" = now() WHERE "stripeSubscriptionId" = $1',
       [subscription.id]
     );
 
@@ -189,7 +189,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
     if (invoice.subscription) {
       // Update subscription status
       await query(
-        "UPDATE StripeSubscription SET status = 'active', updatedAt = NOW() WHERE stripeSubscriptionId = ?",
+        'UPDATE "StripeSubscription" SET status = \'active\', "updatedAt" = now() WHERE "stripeSubscriptionId" = $1',
         // @ts-ignore - Stripe API version differences
         [invoice.subscription as string]
       );
@@ -207,7 +207,7 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
     if (invoice.subscription) {
       // Update subscription status
       await query(
-        "UPDATE StripeSubscription SET status = 'past_due', updatedAt = NOW() WHERE stripeSubscriptionId = ?",
+        'UPDATE "StripeSubscription" SET status = \'past_due\', "updatedAt" = now() WHERE "stripeSubscriptionId" = $1',
         // @ts-ignore - Stripe API version differences
         [invoice.subscription as string]
       );

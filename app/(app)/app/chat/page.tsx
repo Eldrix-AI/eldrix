@@ -149,7 +149,10 @@ const Chat = () => {
             /\[Image \d+:/.test(msg.content) ||
             msg.content.includes("![Image]") ||
             msg.content.startsWith("!") ||
-            /!\[Image\]\(.*?\)/.test(msg.content);
+            /!\[Image\]\(.*?\)/.test(msg.content) ||
+            msg.content.includes("vercel-storage.com") ||
+            msg.content.includes("blob.vercel-storage.com") ||
+            /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)/i.test(msg.content);
 
           return {
             id: msg.id,
@@ -261,7 +264,10 @@ const Chat = () => {
             /\[Image \d+:/.test(msg.content) ||
             msg.content.includes("![Image]") ||
             msg.content.startsWith("!") ||
-            /!\[Image\]\(.*?\)/.test(msg.content);
+            /!\[Image\]\(.*?\)/.test(msg.content) ||
+            msg.content.includes("vercel-storage.com") ||
+            msg.content.includes("blob.vercel-storage.com") ||
+            /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)/i.test(msg.content);
 
           return {
             id: msg.id,
@@ -806,7 +812,10 @@ const Chat = () => {
           /\[Image \d+:/.test(msg.content) ||
           msg.content.includes("![Image]") ||
           msg.content.startsWith("!") ||
-          /!\[Image\]\(.*?\)/.test(msg.content);
+          /!\[Image\]\(.*?\)/.test(msg.content) ||
+          msg.content.includes("vercel-storage.com") ||
+          msg.content.includes("blob.vercel-storage.com") ||
+          /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)/i.test(msg.content);
 
         return {
           id: msg.id,
@@ -931,6 +940,23 @@ const Chat = () => {
       if (match && match[1]) {
         return match[1];
       }
+    }
+
+    // Try to match Vercel storage URLs
+    if (
+      content.includes("vercel-storage.com") ||
+      content.includes("blob.vercel-storage.com")
+    ) {
+      match = content.match(/(https?:\/\/[^\s]+)/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+
+    // Try to match any image URL pattern as fallback
+    match = content.match(/(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg))/i);
+    if (match && match[1]) {
+      return match[1];
     }
 
     return undefined;
@@ -1078,7 +1104,12 @@ const Chat = () => {
                 msg.text.includes("![Image](https://") ||
                 msg.text.match(/!\[Image\]\(.*?\)/) ||
                 msg.text.match(/^!\[Image\]/) ||
-                msg.text.startsWith("!"));
+                msg.text.startsWith("!") ||
+                msg.text.includes(
+                  "https://rnydzbhxroblhdca.public.blob.vercel-storage.com"
+                ) ||
+                msg.text.includes("vercel-storage.com") ||
+                msg.text.includes("blob.vercel-storage.com"));
 
             // For image messages, replace the verbose URL text with simpler message
             const displayText = isImageUrlMessage ? "Attached Image" : msg.text;
@@ -1101,6 +1132,12 @@ const Chat = () => {
                   match = msg.text.match(/!\[Image\]\((.*?)\)/);
                   if (match && match[1]) {
                     imageUrl = match[1];
+                  } else {
+                    // Try to match direct URL patterns
+                    match = msg.text.match(/(https?:\/\/[^\s]+)/);
+                    if (match && match[1]) {
+                      imageUrl = match[1];
+                    }
                   }
                 }
               }
@@ -1121,11 +1158,29 @@ const Chat = () => {
                   }`}
                 >
                   {imageUrl ? (
-                    <img
-                      src={imageUrl}
-                      alt="Uploaded content"
-                      className="rounded-lg max-h-60 w-auto"
-                    />
+                    <div>
+                      <img
+                        src={imageUrl}
+                        alt="Uploaded content"
+                        className="rounded-lg max-h-60 w-auto mb-2"
+                        onError={(e) => {
+                          // If image fails to load, show the URL as text
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = "none";
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `<p class="text-sm">${makeLinksClickable(
+                              displayText
+                            )}</p>`;
+                          }
+                        }}
+                      />
+                      {displayText !== "Attached Image" && (
+                        <p className="text-sm mt-2">
+                          {makeLinksClickable(displayText)}
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <p className="text-sm">{makeLinksClickable(displayText)}</p>
                   )}
