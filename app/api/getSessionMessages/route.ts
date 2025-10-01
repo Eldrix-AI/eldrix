@@ -3,6 +3,19 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../lib/auth";
 import { helpSessions } from "../../../db/index.mjs";
 
+type SessionWithMessages = {
+  id: string;
+  userId: string;
+  title?: string;
+  status?: string;
+  completed?: boolean | number;
+  lastMessage?: string | null;
+  sessionRecap?: string | null;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+  messages: any[];
+} | null;
+
 export async function GET(request: Request) {
   try {
     // Check if user is authenticated
@@ -23,9 +36,11 @@ export async function GET(request: Request) {
     }
 
     // Get the help session with its messages
-    const sessionWithMessages = await helpSessions.getHelpSessionWithMessages(
-      helpSessionId
-    );
+    let sessionWithMessages: SessionWithMessages =
+      (await helpSessions.getHelpSessionWithMessages(helpSessionId)) as any;
+    if (Array.isArray(sessionWithMessages)) {
+      sessionWithMessages = (sessionWithMessages[0] as any) ?? null;
+    }
 
     if (!sessionWithMessages) {
       return NextResponse.json(

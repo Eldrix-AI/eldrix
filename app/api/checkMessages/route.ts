@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../lib/auth";
 import { helpSessions, messages } from "../../../db/index.mjs";
 
+type BasicHelpSession = { id: string; userId: string; status?: string } | null;
+
 export async function GET(request: Request) {
   try {
     // Check if user is authenticated
@@ -22,8 +24,13 @@ export async function GET(request: Request) {
       );
     }
 
-    // Get the help session
-    const helpSession = await helpSessions.getHelpSessionById(helpSessionId);
+    // Get the help session (some helpers may return an array; normalize to object)
+    let helpSession: BasicHelpSession = (await helpSessions.getHelpSessionById(
+      helpSessionId
+    )) as any;
+    if (Array.isArray(helpSession)) {
+      helpSession = (helpSession[0] as any) ?? null;
+    }
 
     if (!helpSession) {
       return NextResponse.json(
@@ -80,8 +87,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get the help session
-    const helpSession = await helpSessions.getHelpSessionById(helpSessionId);
+    // Get the help session (normalize possible array return)
+    let helpSession: BasicHelpSession = (await helpSessions.getHelpSessionById(
+      helpSessionId
+    )) as any;
+    if (Array.isArray(helpSession)) {
+      helpSession = (helpSession[0] as any) ?? null;
+    }
 
     if (!helpSession) {
       return NextResponse.json(

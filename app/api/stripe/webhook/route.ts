@@ -185,12 +185,12 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
 async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
   try {
-    // @ts-ignore - Stripe API version differences
+    // @ts-expect-error Stripe types vary by API version; subscription may be string
     if (invoice.subscription) {
       // Update subscription status
       await query(
         'UPDATE "StripeSubscription" SET status = \'active\', "updatedAt" = now() WHERE "stripeSubscriptionId" = $1',
-        // @ts-ignore - Stripe API version differences
+        // @ts-expect-error Stripe Invoice.subscription can be string in some versions
         [invoice.subscription as string]
       );
     }
@@ -203,12 +203,12 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
   try {
-    // @ts-ignore - Stripe API version differences
+    // @ts-expect-error Stripe types vary by API version; subscription may be string
     if (invoice.subscription) {
       // Update subscription status
       await query(
         'UPDATE "StripeSubscription" SET status = \'past_due\', "updatedAt" = now() WHERE "stripeSubscriptionId" = $1',
-        // @ts-ignore - Stripe API version differences
+        // @ts-expect-error Stripe Invoice.subscription can be string in some versions
         [invoice.subscription as string]
       );
     }

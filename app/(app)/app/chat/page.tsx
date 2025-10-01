@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../../../components/Sidebar";
@@ -963,16 +963,23 @@ const Chat = () => {
   };
 
   return (
-    <div className="flex h-screen">
-      {/* Main Sidebar */}
-      <Sidebar
-        name={userData?.name || ""}
-        profilePictureUrl={userData?.imageUrl || "/default-avatar.png"}
-        phoneNumber={userData?.phone || ""}
-      />
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center">
+          Loading…
+        </div>
+      }
+    >
+      <div className="flex h-screen">
+        {/* Main Sidebar */}
+        <Sidebar
+          name={userData?.name || ""}
+          profilePictureUrl={userData?.imageUrl || "/default-avatar.png"}
+          phoneNumber={userData?.phone || ""}
+        />
 
-      {/* Sessions Sidebar */}
-      {/* {showSidebar && (
+        {/* Sessions Sidebar */}
+        {/* {showSidebar && (
         <SessionsSidebar
           sessions={sessions}
           currentSessionId={helpSessionId}
@@ -982,9 +989,9 @@ const Chat = () => {
         />
       )} */}
 
-      <div className="flex-1 flex flex-col bg-[#FDF9F4] relative">
-        {/* Toggle sidebar button */}
-        {/* <button
+        <div className="flex-1 flex flex-col bg-[#FDF9F4] relative">
+          {/* Toggle sidebar button */}
+          {/* <button
           onClick={() => setShowSidebar((prev) => !prev)}
           className="absolute top-4 left-4 z-10 p-2 rounded-full bg-white shadow-md hover:bg-gray-100"
         >
@@ -1021,276 +1028,294 @@ const Chat = () => {
           )}
         </button> */}
 
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
-          <div className="flex justify-between items-center">
-            <h1 className="text-xl font-semibold text-[#2D3E50]">
-              Tech Support Chat
-            </h1>
-            <div className="flex items-center space-x-3">
-              {helpSessionId && (
-                <div
-                  className={`px-3 py-1 rounded-full text-sm ${
-                    isClosed
-                      ? "bg-gray-100 text-gray-800"
+          {/* Header */}
+          <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+            <div className="flex justify-between items-center">
+              <h1 className="text-xl font-semibold text-[#2D3E50]">
+                Tech Support Chat
+              </h1>
+              <div className="flex items-center space-x-3">
+                {helpSessionId && (
+                  <div
+                    className={`px-3 py-1 rounded-full text-sm ${
+                      isClosed
+                        ? "bg-gray-100 text-gray-800"
+                        : sessionStatus === "pending"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-green-100 text-green-800"
+                    }`}
+                  >
+                    {isClosed
+                      ? "Closed"
                       : sessionStatus === "pending"
-                      ? "bg-yellow-100 text-yellow-800"
-                      : "bg-green-100 text-green-800"
-                  }`}
+                      ? "Awaiting Message"
+                      : "Open"}
+                  </div>
+                )}
+                {helpSessionId && !isClosed && (
+                  <button
+                    onClick={handleCloseChat}
+                    disabled={isClosing || isClosed}
+                    className={`px-3 py-1 rounded-md text-sm font-medium ${
+                      isClosing
+                        ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                        : "bg-red-100 text-red-800 hover:bg-red-200"
+                    }`}
+                  >
+                    {isClosing ? "Closing..." : "Close Chat"}
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center mt-1 text-sm text-[#5A7897]">
+              <p>
+                Want to chat with your phone? Call or text:{" "}
+                <span className="font-semibold">888-670-2766</span>
+              </p>
+              <div className="flex ml-2 space-x-2">
+                <a
+                  href="tel:8886702766"
+                  className="text-[#2D3E50] hover:text-[#5A7897]"
                 >
-                  {isClosed
-                    ? "Closed"
-                    : sessionStatus === "pending"
-                    ? "Awaiting Message"
-                    : "Open"}
-                </div>
-              )}
-              {helpSessionId && !isClosed && (
-                <button
-                  onClick={handleCloseChat}
-                  disabled={isClosing || isClosed}
-                  className={`px-3 py-1 rounded-md text-sm font-medium ${
-                    isClosing
-                      ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                      : "bg-red-100 text-red-800 hover:bg-red-200"
-                  }`}
+                  <FaPhoneAlt size={14} />
+                </a>
+                <a
+                  href="sms:8886702766"
+                  className="text-[#2D3E50] hover:text-[#5A7897]"
                 >
-                  {isClosing ? "Closing..." : "Close Chat"}
-                </button>
-              )}
+                  <FaSms size={14} />
+                </a>
+              </div>
             </div>
           </div>
-          <div className="flex items-center mt-1 text-sm text-[#5A7897]">
-            <p>
-              Want to chat with your phone? Call or text:{" "}
-              <span className="font-semibold">888-670-2766</span>
-            </p>
-            <div className="flex ml-2 space-x-2">
-              <a
-                href="tel:8886702766"
-                className="text-[#2D3E50] hover:text-[#5A7897]"
-              >
-                <FaPhoneAlt size={14} />
-              </a>
-              <a
-                href="sms:8886702766"
-                className="text-[#2D3E50] hover:text-[#5A7897]"
-              >
-                <FaSms size={14} />
-              </a>
-            </div>
-          </div>
-        </div>
 
-        {/* Messages Area */}
-        <div
-          className="flex-1 overflow-y-auto p-6 space-y-4"
-          id="messagesContainer"
-        >
-          {messages.map((msg, index) => {
-            // Check if this is an image message (contains image URL text)
-            const isImageUrlMessage =
-              msg.text &&
-              typeof msg.text === "string" &&
-              (msg.text.includes("Image attachment [Image:") ||
-                msg.text.includes("[Image 1:") ||
-                msg.text.match(/\[Image \d+:/) ||
-                msg.text.includes(
-                  "deepskygallery.s3.us-east-2.amazonaws.com/eldrix"
-                ) ||
-                (msg.text.includes("api.twilio.com") &&
-                  (msg.text.includes("[Image") ||
-                    msg.text.includes("![Image]"))) ||
-                msg.text.includes("![Image](https://") ||
-                msg.text.match(/!\[Image\]\(.*?\)/) ||
-                msg.text.match(/^!\[Image\]/) ||
-                msg.text.startsWith("!") ||
-                msg.text.includes(
-                  "https://rnydzbhxroblhdca.public.blob.vercel-storage.com"
-                ) ||
-                msg.text.includes("vercel-storage.com") ||
-                msg.text.includes("blob.vercel-storage.com"));
+          {/* Messages Area */}
+          <div
+            className="flex-1 overflow-y-auto p-6 space-y-4"
+            id="messagesContainer"
+          >
+            {messages.map((msg, index) => {
+              // Check if this is an image message (contains image URL text)
+              const isImageUrlMessage =
+                msg.text &&
+                typeof msg.text === "string" &&
+                (msg.text.includes("Image attachment [Image:") ||
+                  msg.text.includes("[Image 1:") ||
+                  msg.text.match(/\[Image \d+:/) ||
+                  msg.text.includes(
+                    "deepskygallery.s3.us-east-2.amazonaws.com/eldrix"
+                  ) ||
+                  (msg.text.includes("api.twilio.com") &&
+                    (msg.text.includes("[Image") ||
+                      msg.text.includes("![Image]"))) ||
+                  msg.text.includes("![Image](https://") ||
+                  msg.text.match(/!\[Image\]\(.*?\)/) ||
+                  msg.text.match(/^!\[Image\]/) ||
+                  msg.text.startsWith("!") ||
+                  msg.text.includes(
+                    "https://rnydzbhxroblhdca.public.blob.vercel-storage.com"
+                  ) ||
+                  msg.text.includes("vercel-storage.com") ||
+                  msg.text.includes("blob.vercel-storage.com"));
 
-            // For image messages, replace the verbose URL text with simpler message
-            const displayText = isImageUrlMessage ? "Attached Image" : msg.text;
+              // For image messages, replace the verbose URL text with simpler message
+              const displayText = isImageUrlMessage
+                ? "Attached Image"
+                : msg.text;
 
-            // If it's an image URL message but doesn't have imageUrl property,
-            // extract the URL from the text
-            let imageUrl = msg.imageUrl;
-            if (isImageUrlMessage && !imageUrl) {
-              // Try to match [Image 1: URL] format (Twilio format)
-              let match = msg.text.match(/\[Image \d+: (.*?)\]/);
-              if (match && match[1]) {
-                imageUrl = match[1];
-              } else {
-                // Try to match [Image: URL] format
-                match = msg.text.match(/\[Image: (.*?)\]/);
+              // If it's an image URL message but doesn't have imageUrl property,
+              // extract the URL from the text
+              let imageUrl = msg.imageUrl;
+              if (isImageUrlMessage && !imageUrl) {
+                // Try to match [Image 1: URL] format (Twilio format)
+                let match = msg.text.match(/\[Image \d+: (.*?)\]/);
                 if (match && match[1]) {
                   imageUrl = match[1];
                 } else {
-                  // Try to match ![Image](URL) format
-                  match = msg.text.match(/!\[Image\]\((.*?)\)/);
+                  // Try to match [Image: URL] format
+                  match = msg.text.match(/\[Image: (.*?)\]/);
                   if (match && match[1]) {
                     imageUrl = match[1];
                   } else {
-                    // Try to match direct URL patterns
-                    match = msg.text.match(/(https?:\/\/[^\s]+)/);
+                    // Try to match ![Image](URL) format
+                    match = msg.text.match(/!\[Image\]\((.*?)\)/);
                     if (match && match[1]) {
                       imageUrl = match[1];
+                    } else {
+                      // Try to match direct URL patterns
+                      match = msg.text.match(/(https?:\/\/[^\s]+)/);
+                      if (match && match[1]) {
+                        imageUrl = match[1];
+                      }
                     }
                   }
                 }
               }
-            }
 
-            return (
-              <div
-                key={`${msg.id}-${index}`}
-                className={`flex ${
-                  msg.sender === "assistant" ? "justify-start" : "justify-end"
-                }`}
-              >
+              return (
                 <div
-                  className={`max-w-[75%] rounded-2xl px-4 py-3 ${
-                    msg.sender === "assistant"
-                      ? "bg-white text-[#2D3E50] border border-gray-200"
-                      : "bg-[#2D3E50] text-white"
+                  key={`${msg.id}-${index}`}
+                  className={`flex ${
+                    msg.sender === "assistant" ? "justify-start" : "justify-end"
                   }`}
                 >
-                  {imageUrl ? (
-                    <div>
-                      <img
-                        src={imageUrl}
-                        alt="Uploaded content"
-                        className="rounded-lg max-h-60 w-auto mb-2"
-                        onError={(e) => {
-                          // If image fails to load, show the URL as text
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = "none";
-                          const parent = target.parentElement;
-                          if (parent) {
-                            parent.innerHTML = `<p class="text-sm">${makeLinksClickable(
-                              displayText
-                            )}</p>`;
-                          }
-                        }}
-                      />
-                      {displayText !== "Attached Image" && (
-                        <p className="text-sm mt-2">
-                          {makeLinksClickable(displayText)}
-                        </p>
+                  <div
+                    className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                      msg.sender === "assistant"
+                        ? "bg-white text-[#2D3E50] border border-gray-200"
+                        : "bg-[#2D3E50] text-white"
+                    }`}
+                  >
+                    {imageUrl ? (
+                      <div>
+                        <img
+                          src={imageUrl}
+                          alt="Uploaded content"
+                          className="rounded-lg max-h-60 w-auto mb-2"
+                          onError={(e) => {
+                            // If image fails to load, show the URL as text
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = "none";
+                            const parent = target.parentElement;
+                            if (parent) {
+                              parent.innerHTML = `<p class="text-sm">${makeLinksClickable(
+                                displayText
+                              )}</p>`;
+                            }
+                          }}
+                        />
+                        {displayText !== "Attached Image" && (
+                          <p className="text-sm mt-2">
+                            {makeLinksClickable(displayText)}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm">
+                        {makeLinksClickable(displayText)}
+                      </p>
+                    )}
+                    <div className="flex justify-between items-center mt-1">
+                      <p className="text-xs opacity-70">
+                        {msg.timestamp.toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                      {msg.sender === "user" && msg.status && (
+                        <span className="text-xs opacity-70 ml-2">
+                          {msg.status === "sending" && "Sending..."}
+                          {msg.status === "sent" && "Sent"}
+                          {msg.status === "delivered" && "Delivered"}
+                          {msg.status === "read" && "Read"}
+                          {msg.status === "error" && "Failed to send"}
+                        </span>
                       )}
                     </div>
-                  ) : (
-                    <p className="text-sm">{makeLinksClickable(displayText)}</p>
-                  )}
-                  <div className="flex justify-between items-center mt-1">
-                    <p className="text-xs opacity-70">
-                      {msg.timestamp.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                    {msg.sender === "user" && msg.status && (
-                      <span className="text-xs opacity-70 ml-2">
-                        {msg.status === "sending" && "Sending..."}
-                        {msg.status === "sent" && "Sent"}
-                        {msg.status === "delivered" && "Delivered"}
-                        {msg.status === "read" && "Read"}
-                        {msg.status === "error" && "Failed to send"}
-                      </span>
-                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-white text-[#2D3E50] border border-gray-200 rounded-2xl px-4 py-3">
+                  <div className="flex space-x-2">
+                    <div
+                      className="w-2 h-2 rounded-full bg-[#2D3E50] animate-bounce"
+                      style={{ animationDelay: "0ms" }}
+                    ></div>
+                    <div
+                      className="w-2 h-2 rounded-full bg-[#2D3E50] animate-bounce"
+                      style={{ animationDelay: "100ms" }}
+                    ></div>
+                    <div
+                      className="w-2 h-2 rounded-full bg-[#2D3E50] animate-bounce"
+                      style={{ animationDelay: "200ms" }}
+                    ></div>
                   </div>
                 </div>
               </div>
-            );
-          })}
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-white text-[#2D3E50] border border-gray-200 rounded-2xl px-4 py-3">
-                <div className="flex space-x-2">
-                  <div
-                    className="w-2 h-2 rounded-full bg-[#2D3E50] animate-bounce"
-                    style={{ animationDelay: "0ms" }}
-                  ></div>
-                  <div
-                    className="w-2 h-2 rounded-full bg-[#2D3E50] animate-bounce"
-                    style={{ animationDelay: "100ms" }}
-                  ></div>
-                  <div
-                    className="w-2 h-2 rounded-full bg-[#2D3E50] animate-bounce"
-                    style={{ animationDelay: "200ms" }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
 
-        {/* Input Area */}
-        <div className="bg-white border-t border-gray-200 px-4 py-3">
-          <form
-            onSubmit={handleSendMessage}
-            className="flex items-center space-x-2"
-          >
-            <button
-              type="button"
-              onClick={handleImageUpload}
-              disabled={isClosed}
-              className={`text-[#5A7897] hover:text-[#2D3E50] p-2 rounded-full transition ${
-                isClosed ? "opacity-50 cursor-not-allowed" : ""
-              }`}
+          {/* Input Area */}
+          <div className="bg-white border-t border-gray-200 px-4 py-3">
+            <form
+              onSubmit={handleSendMessage}
+              className="flex items-center space-x-2"
             >
-              <FaImage size={20} />
-            </button>
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              disabled={isClosed}
-            />
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder={
-                isClosed
-                  ? "This chat session has been closed"
-                  : "Type your message here..."
-              }
-              className={`flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2D3E50]/40 ${
-                isClosed ? "bg-gray-100 text-gray-500" : ""
-              }`}
-              disabled={isClosed}
-            />
-            <button
-              type="submit"
-              disabled={(!message.trim() && !isLoading) || isClosed}
-              className={`bg-[#2D3E50] text-white p-2 rounded-full transition ${
-                (!message.trim() && !isLoading) || isClosed
-                  ? "opacity-50 cursor-not-allowed"
-                  : "hover:bg-[#24466d]"
-              }`}
-            >
-              <FaPaperPlane size={16} />
-            </button>
-          </form>
+              <button
+                type="button"
+                onClick={handleImageUpload}
+                disabled={isClosed}
+                className={`text-[#5A7897] hover:text-[#2D3E50] p-2 rounded-full transition ${
+                  isClosed ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                <FaImage size={20} />
+              </button>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                disabled={isClosed}
+              />
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder={
+                  isClosed
+                    ? "This chat session has been closed"
+                    : "Type your message here..."
+                }
+                className={`flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2D3E50]/40 ${
+                  isClosed ? "bg-gray-100 text-gray-500" : ""
+                }`}
+                disabled={isClosed}
+              />
+              <button
+                type="submit"
+                disabled={(!message.trim() && !isLoading) || isClosed}
+                className={`bg-[#2D3E50] text-white p-2 rounded-full transition ${
+                  (!message.trim() && !isLoading) || isClosed
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-[#24466d]"
+                }`}
+              >
+                <FaPaperPlane size={16} />
+              </button>
+            </form>
+          </div>
         </div>
+        {showSidebar && (
+          <SessionsSidebar
+            sessions={sessions}
+            currentSessionId={helpSessionId}
+            onSelectSession={handleSelectSession}
+            onNewChat={handleNewChat}
+            hasActiveSession={hasActiveSession}
+          />
+        )}
       </div>
-      {showSidebar && (
-        <SessionsSidebar
-          sessions={sessions}
-          currentSessionId={helpSessionId}
-          onSelectSession={handleSelectSession}
-          onNewChat={handleNewChat}
-          hasActiveSession={hasActiveSession}
-        />
-      )}
-    </div>
+    </Suspense>
   );
 };
 
-export default Chat;
+// Wrap export in Suspense to ensure searchParams usage is within a boundary
+export default function ChatPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center">
+          Loading…
+        </div>
+      }
+    >
+      <Chat />
+    </Suspense>
+  );
+}

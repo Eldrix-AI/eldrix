@@ -31,10 +31,22 @@ export async function GET(request: Request) {
     // Get all sessions for this user
     const userSessions = await helpSessions.getHelpSessionsByUserId(userId);
 
-    // Convert to array if needed and cast to HelpSession type
-    const sessionsArray = (
-      Array.isArray(userSessions) ? userSessions : []
-    ) as HelpSession[];
+    // Normalize and defensively map to expected shape
+    const rawArray: any[] = Array.isArray(userSessions) ? userSessions : [];
+    const sessionsArray: HelpSession[] = rawArray.map((s: any) => ({
+      id: String(s.id),
+      userId: String(s.userId),
+      title: String(s.title ?? ""),
+      sessionRecap: s.sessionRecap ?? null,
+      completed:
+        typeof s.completed === "number" ? s.completed : s.completed ? 1 : 0,
+      lastMessage: s.lastMessage ?? null,
+      type: String(s.type ?? ""),
+      status: String(s.status ?? "pending"),
+      priority: String(s.priority ?? ""),
+      createdAt: String(s.createdAt ?? new Date().toISOString()),
+      updatedAt: String(s.updatedAt ?? new Date().toISOString()),
+    }));
 
     // Sort sessions by most recent first
     sessionsArray.sort(

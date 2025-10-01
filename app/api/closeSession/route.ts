@@ -9,6 +9,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+type BasicHelpSession = { id: string; userId: string; title?: string } | null;
+
 export async function POST(request: Request) {
   try {
     // Check if user is authenticated
@@ -30,8 +32,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get the help session
-    const helpSession = await helpSessions.getHelpSessionById(helpSessionId);
+    // Get the help session (normalize possible array return)
+    let helpSession: BasicHelpSession = (await helpSessions.getHelpSessionById(
+      helpSessionId
+    )) as any;
+    if (Array.isArray(helpSession)) {
+      helpSession = (helpSession[0] as any) ?? null;
+    }
 
     if (!helpSession) {
       return NextResponse.json(
@@ -52,14 +59,23 @@ export async function POST(request: Request) {
     const sessionData = await helpSessions.getHelpSessionWithMessages(
       helpSessionId
     );
-    const allMessages = sessionData.messages;
+    if (!sessionData) {
+      return NextResponse.json(
+        { error: "Help session not found" },
+        { status: 404 }
+      );
+    }
+    const allMessages: Array<{ isAdmin: boolean; content: string }> =
+      Array.isArray((sessionData as any).messages)
+        ? ((sessionData as any).messages as any[]).map((m) => ({
+            isAdmin: Boolean((m as any).isAdmin),
+            content: String((m as any).content ?? ""),
+          }))
+        : [];
 
     // Format messages for GPT prompt
     const formattedMessages = allMessages
-      .map(
-        (msg: { isAdmin: any; content: any }) =>
-          `${msg.isAdmin ? "Support Agent" : "User"}: ${msg.content}`
-      )
+      .map((msg) => `${msg.isAdmin ? "Support Agent" : "User"}: ${msg.content}`)
       .join("\n\n");
 
     // Generate session recap using GPT-4o

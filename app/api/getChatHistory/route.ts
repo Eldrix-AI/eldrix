@@ -3,6 +3,13 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../lib/auth";
 import { helpSessions } from "../../../db/index.mjs";
 
+type ChatSessionWithMessages = {
+  id: string;
+  userId: string;
+  completed?: boolean | number;
+  messages: Array<{ createdAt: string | Date }> | any;
+} | null;
+
 export async function GET(request: Request) {
   try {
     // Check if user is authenticated
@@ -23,9 +30,11 @@ export async function GET(request: Request) {
     }
 
     // Get the full session with messages
-    const chatSession = await helpSessions.getHelpSessionWithMessages(
-      sessionId
-    );
+    let chatSession: ChatSessionWithMessages =
+      (await helpSessions.getHelpSessionWithMessages(sessionId)) as any;
+    if (Array.isArray(chatSession)) {
+      chatSession = (chatSession[0] as any) ?? null;
+    }
 
     if (!chatSession) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
@@ -40,13 +49,18 @@ export async function GET(request: Request) {
     }
 
     // Calculate session duration if it's completed
-    let duration = null;
-    if (chatSession.completed === 1 && chatSession.messages.length > 1) {
-      const firstMessage = new Date(
-        chatSession.messages[0].createdAt
-      ).getTime();
+    let duration = null as number | null;
+    const messagesArr: Array<{ createdAt: string | Date }> = Array.isArray(
+      (chatSession as any).messages
+    )
+      ? ((chatSession as any).messages as any[])
+      : [];
+    const isCompleted =
+      (chatSession.completed as any) === true || chatSession.completed === 1;
+    if (isCompleted && messagesArr.length > 1) {
+      const firstMessage = new Date(messagesArr[0].createdAt).getTime();
       const lastMessage = new Date(
-        chatSession.messages[chatSession.messages.length - 1].createdAt
+        messagesArr[messagesArr.length - 1].createdAt
       ).getTime();
 
       // Duration in minutes
