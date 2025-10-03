@@ -71,6 +71,12 @@ export async function POST(request: NextRequest) {
           // Cancel the current subscription immediately
           await stripe.subscriptions.cancel(userData.stripeSubscriptionId);
 
+          // Remove the subscription record from our database
+          await query(
+            'DELETE FROM "StripeSubscription" WHERE "stripeSubscriptionId" = $1',
+            [userData.stripeSubscriptionId]
+          );
+
           // Clear the subscription ID from user but DON'T return early
           // We need to continue to create the Pay As You Go checkout
           await query(
@@ -101,11 +107,33 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
 
-      // Always clear the usage ID when switching to a subscription plan
+      // If user has a Pay As You Go subscription, cancel it first
+      if (userData.stripeSubscriptionId) {
+        try {
+          // Cancel the existing Pay As You Go subscription
+          await stripe.subscriptions.cancel(userData.stripeSubscriptionId);
+
+          // Remove the subscription record from our database
+          await query(
+            'DELETE FROM "StripeSubscription" WHERE "stripeSubscriptionId" = $1',
+            [userData.stripeSubscriptionId]
+          );
+
+          console.log(
+            `Successfully canceled Pay As You Go subscription ${userData.stripeSubscriptionId} for user ${userId}`
+          );
+        } catch (err) {
+          console.error("Error canceling Pay As You Go subscription:", err);
+          // Continue anyway to create the new subscription
+        }
+      }
+
+      // Clear both subscription ID and usage ID when switching to a subscription plan
       // This handles both cases: free->subscription and paygo->subscription
-      await query('UPDATE "User" SET "stripeUsageId" = NULL WHERE id = $1', [
-        userId,
-      ]);
+      await query(
+        'UPDATE "User" SET "stripeSubscriptionId" = NULL, "stripeUsageId" = NULL WHERE id = $1',
+        [userId]
+      );
     }
 
     // Get the price ID based on plan type

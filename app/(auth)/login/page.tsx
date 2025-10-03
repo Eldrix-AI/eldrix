@@ -27,7 +27,7 @@ export default function LoginPage() {
 
   const handleSocialLogin = async (provider: "google" | "apple") => {
     try {
-      await signIn(provider, { callbackUrl: "/app/dashboard" });
+      await signIn(provider, { callbackUrl: "/app/onboarding" });
     } catch (error) {
       setError(`Failed to sign in with ${provider}`);
     }
@@ -64,13 +64,13 @@ export default function LoginPage() {
             Continue with Google
           </button>
 
-          <button
+          {/* <button
             onClick={() => handleSocialLogin("apple")}
             className="w-full flex items-center justify-center gap-3 bg-black text-white py-3 px-4 rounded-lg font-semibold transition hover:bg-gray-800"
           >
             <FaApple size={20} />
             Continue with Apple
-          </button>
+          </button> */}
         </div>
 
         {/* Divider */}

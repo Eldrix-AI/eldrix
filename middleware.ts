@@ -31,7 +31,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 4. Otherwise let it through (this also covers all your public pages)
+  // 4. For now, let all authenticated users access onboarding pages
+  // The onboarding page itself will handle checking if completion is needed
+
+  // 5. Otherwise let it through (this also covers all your public pages)
   return NextResponse.next();
 }
 

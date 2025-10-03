@@ -22,6 +22,39 @@ export default function OnboardingPage() {
     }
   }, [session, router]);
 
+  // Check if user has already completed onboarding
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      if (!session?.user?.id) return;
+
+      try {
+        const response = await fetch("/api/getUserData", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: session.user.email }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const { user } = data;
+
+          // If user has completed onboarding (has real phone and SMS consent), redirect to dashboard
+          if (user && user.phone !== "000-000-0000" && user.smsConsent) {
+            router.push("/app/dashboard");
+          }
+        }
+      } catch (error) {
+        console.error("Error checking onboarding status:", error);
+      }
+    };
+
+    if (session?.user?.id) {
+      checkOnboardingStatus();
+    }
+  }, [session, router]);
+
   const validatePhone = (phone: string) => {
     const cleaned = phone.replace(/\D/g, "");
     return cleaned.length === 10;

@@ -5,12 +5,216 @@ import { put } from "@vercel/blob";
 import { v4 as uuidv4 } from "uuid";
 import { helpSessions, messages } from "../../../db/index.mjs";
 import Stripe from "stripe";
+import twilio from "twilio";
 
 export const dynamic = "force-dynamic";
 
 // Vercel Blob token
 const BLOB_TOKEN =
   process.env.BLOB_READ_WRITE_TOKEN || process.env.blob_READ_WRITE_TOKEN || "";
+
+// Twilio client for SMS notifications
+const twilioClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
+// Helper function to send SMS notification
+async function sendSMSNotification(
+  userData: any,
+  userPlan: any,
+  messageContent: string,
+  isNewSession: boolean,
+  sessionId: string
+) {
+  try {
+    const planType = userPlan.type;
+    const planDisplayName =
+      planType === "FREE"
+        ? "Free Trial"
+        : planType === "CUSTOMER"
+        ? "Customer"
+        : planType === "MONTHLY_OR_YEARLY"
+        ? "Paid Customer"
+        : planType === "PAYGO"
+        ? "Pay-As-You-Go Customer"
+        : "Unknown";
+
+    const sessionType = isNewSession
+      ? "New chat session"
+      : "Message in existing session";
+    const messagePreview =
+      messageContent.length > 50
+        ? messageContent.substring(0, 47) + "..."
+        : messageContent;
+
+    // Check if userData exists and has required fields
+    if (!userData) {
+      console.log("⚠️ No user data available for SMS notification");
+      return;
+    }
+
+    const userName = userData.name || "Unknown User";
+    const userEmail = userData.email || "No email";
+
+    // Create response URL
+    const responseUrl = `https://admin.eldrix.app/chat?id=${sessionId}`;
+
+    const smsBody = `📱 Eldrix ${sessionType}
+👤 ${userName} (${planDisplayName})
+💬 "${messagePreview}"
+📧 ${userEmail}
+
+🔗 Click here to respond: ${responseUrl}`;
+
+    await twilioClient.messages.create({
+      body: smsBody,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: "+17206122979", // Your phone number
+    });
+
+    console.log("✅ SMS notification sent successfully");
+  } catch (error) {
+    console.error("❌ Error sending SMS notification:", error);
+    // Don't fail the request if SMS fails
+  }
+}
+
+// Plan types and limits
+const PLAN_LIMITS = {
+  FREE: { freeChats: 3, unlimited: false },
+  CUSTOMER: { freeChats: 3, unlimited: false },
+  MONTHLY_OR_YEARLY: { freeChats: 0, unlimited: true },
+  PAYGO: { freeChats: 3, unlimited: false },
+  PRIORITY_PAYGO: { freeChats: 3, unlimited: false },
+};
+
+// Helper function to determine user plan type
+function determineUserPlan(userData: any) {
+  if (!userData) {
+    console.log("No user data provided, defaulting to FREE plan");
+    return { type: "FREE", hasSubscription: false, hasUsageId: false };
+  }
+
+  const hasSubscription = !!userData.stripeSubscriptionId;
+  const hasUsageId = !!userData.stripeUsageId;
+
+  console.log("User plan determination:", {
+    hasSubscription,
+    hasUsageId,
+    stripeSubscriptionId: userData.stripeSubscriptionId,
+    stripeUsageId: userData.stripeUsageId,
+  });
+
+  // If they have a subscription ID, they're on a monthly/yearly plan
+  if (hasSubscription && !hasUsageId) {
+    return {
+      type: "MONTHLY_OR_YEARLY",
+      hasSubscription: true,
+      hasUsageId: false,
+    };
+  }
+
+  // If they have both subscription ID and usage ID, they're on pay-as-you-go
+  if (hasSubscription && hasUsageId) {
+    return { type: "PAYGO", hasSubscription: true, hasUsageId: true };
+  }
+
+  // If they only have usage ID, they might be on pay-as-you-go without subscription
+  if (hasUsageId && !hasSubscription) {
+    return { type: "PAYGO", hasSubscription: false, hasUsageId: true };
+  }
+
+  // If user has completed onboarding (has real phone number and SMS consent), they're a customer
+  // Only show "Free Trial" for users who haven't completed onboarding
+  if (
+    userData.phone &&
+    userData.phone !== "000-000-0000" &&
+    userData.smsConsent
+  ) {
+    return { type: "CUSTOMER", hasSubscription: false, hasUsageId: false };
+  }
+
+  // Default to free plan for incomplete onboarding
+  return { type: "FREE", hasSubscription: false, hasUsageId: false };
+}
+
+// Helper function to check chat limits
+async function checkChatLimits(userId: string, userPlan: any) {
+  const { helpSessions } = await import("../../../db/index.mjs");
+
+  // Get total sessions for this user (not just completed ones)
+  const allSessions = await helpSessions.getHelpSessionsByUserId(userId);
+  const totalChats = allSessions.length;
+
+  const planType = userPlan.type;
+  const limits =
+    PLAN_LIMITS[planType as keyof typeof PLAN_LIMITS] || PLAN_LIMITS.FREE;
+
+  console.log("Chat limits check:", {
+    userId,
+    planType,
+    totalChats,
+    freeChats: limits.freeChats,
+    unlimited: limits.unlimited,
+    canChat: totalChats < limits.freeChats || limits.unlimited,
+  });
+
+  // If unlimited plan, always allow
+  if (limits.unlimited) {
+    return {
+      canChat: true,
+      remainingChats: -1, // -1 indicates unlimited
+      errorMessage: "",
+      upgradeRequired: false,
+    };
+  }
+
+  // Check if user has exceeded free chat limit
+  const remainingChats = Math.max(0, limits.freeChats - totalChats);
+  const canChat = totalChats < limits.freeChats;
+
+  if (!canChat) {
+    let errorMessage = "";
+    let upgradeRequired = false;
+
+    if (planType === "FREE") {
+      errorMessage = `You've used all ${limits.freeChats} free chats. Upgrade to a paid plan for unlimited access!`;
+      upgradeRequired = true;
+      return {
+        canChat: false,
+        remainingChats: 0,
+        errorMessage,
+        upgradeRequired,
+      };
+    } else if (planType === "CUSTOMER") {
+      errorMessage = `You've used all ${limits.freeChats} free chats. Upgrade to a paid plan for unlimited access!`;
+      upgradeRequired = true;
+      return {
+        canChat: false,
+        remainingChats: 0,
+        errorMessage,
+        upgradeRequired,
+      };
+    } else if (planType === "PAYGO") {
+      // PAYG users can continue chatting but will be charged
+      return {
+        canChat: true,
+        remainingChats: 0,
+        errorMessage: `You've used your ${limits.freeChats} free chats. This session will be charged.`,
+        upgradeRequired: false,
+        isPaygWarning: true,
+      };
+    }
+  }
+
+  return {
+    canChat: true,
+    remainingChats,
+    errorMessage: "",
+    upgradeRequired: false,
+  };
+}
 
 // Function to upload image to Vercel Blob
 async function uploadImageToS3(file: File) {
@@ -45,10 +249,36 @@ export async function POST(request: Request) {
 
     // Get user data to check subscription status
     const { query } = await import("../../../lib/db");
-    const [userData] = (await query(
-      'SELECT "stripeSubscriptionId", "stripeUsageId", "stripeCustomerId" FROM "User" WHERE id = $1',
+    const userDataResult = (await query(
+      'SELECT "stripeSubscriptionId", "stripeUsageId", "stripeCustomerId", name, email, phone, "smsConsent" FROM "User" WHERE id = $1',
       [userId]
     )) as any;
+
+    const userData =
+      userDataResult && userDataResult.length > 0 ? userDataResult[0] : null;
+    console.log("User data from database:", userData);
+
+    // Determine user plan type and check chat limits
+    const userPlan = determineUserPlan(userData);
+    const chatLimits = await checkChatLimits(userId, userPlan);
+
+    // If user has exceeded their free chat limit, block the request
+    if (!chatLimits.canChat) {
+      return NextResponse.json(
+        {
+          error: chatLimits.errorMessage,
+          planType: userPlan.type,
+          remainingChats: chatLimits.remainingChats,
+          upgradeRequired: chatLimits.upgradeRequired,
+        },
+        { status: 403 }
+      );
+    }
+
+    // Store PAYG warning info for later use
+    const paygWarning = chatLimits.isPaygWarning
+      ? chatLimits.errorMessage
+      : null;
 
     // Parse form data (may include text message and/or image)
     const formData = await request.formData();
@@ -187,6 +417,15 @@ export async function POST(request: Request) {
     // Only charge for new help sessions, not for additional messages in the same session
     const isNewHelpSession = !helpSessionId;
 
+    // Send SMS notification to admin
+    await sendSMSNotification(
+      userData,
+      userPlan,
+      messageContent,
+      isNewHelpSession,
+      sessionId
+    );
+
     // For pay-as-you-go users, report usage to Stripe, but only for new help sessions
     console.log("User data:", userData);
     console.log("Checking pay-as-you-go eligibility:", {
@@ -197,8 +436,14 @@ export async function POST(request: Request) {
     });
 
     // Check for pay-as-you-go users - they have a usage ID
-    // Only charge if this is a new help session
-    if (userData && userData.stripeUsageId && isNewHelpSession) {
+    // Only charge if this is a new help session AND they've exceeded their free chats
+    const shouldChargePAYG =
+      userData &&
+      userData.stripeUsageId &&
+      isNewHelpSession &&
+      userPlan.type === "PAYGO" &&
+      chatLimits.remainingChats === 0;
+    if (shouldChargePAYG) {
       console.log(
         "Processing usage-based billing for new help session, user:",
         userId
@@ -241,6 +486,16 @@ export async function POST(request: Request) {
       }
     } else if (userData && userData.stripeUsageId && !isNewHelpSession) {
       console.log("Existing help session - not charging additional usage");
+    } else if (
+      userData &&
+      userData.stripeUsageId &&
+      isNewHelpSession &&
+      userPlan.type === "PAYGO" &&
+      chatLimits.remainingChats > 0
+    ) {
+      console.log(
+        "PAYG user within free chat limit - not charging for this session"
+      );
     } else {
       console.log(
         "User has no usage ID or is not on pay-as-you-go plan, skipping usage reporting"
@@ -251,6 +506,7 @@ export async function POST(request: Request) {
       success: true,
       session: updatedSession,
       message: newMessage,
+      paygWarning: paygWarning,
     });
   } catch (error) {
     console.error("Error processing chat message:", error);

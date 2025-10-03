@@ -167,17 +167,17 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   try {
     // Remove subscription from user
     await query(
-      'UPDATE "User" SET "stripeSubscriptionId" = NULL WHERE "stripeSubscriptionId" = $1',
+      'UPDATE "User" SET "stripeSubscriptionId" = NULL, "stripeUsageId" = NULL WHERE "stripeSubscriptionId" = $1',
       [subscription.id]
     );
 
-    // Update subscription status
+    // Delete the subscription record from our database
     await query(
-      'UPDATE "StripeSubscription" SET status = \'canceled\', "updatedAt" = now() WHERE "stripeSubscriptionId" = $1',
+      'DELETE FROM "StripeSubscription" WHERE "stripeSubscriptionId" = $1',
       [subscription.id]
     );
 
-    console.log(`Canceled subscription ${subscription.id}`);
+    console.log(`Canceled and removed subscription ${subscription.id}`);
   } catch (error) {
     console.error("Error handling subscription deletion:", error);
   }

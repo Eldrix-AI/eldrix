@@ -21,6 +21,7 @@ interface Message {
   timestamp: Date;
   imageUrl?: string;
   status?: "sending" | "sent" | "delivered" | "read" | "error";
+  showUpgradeButton?: boolean;
 }
 
 // Define an interface for the message data returned from the API
@@ -64,6 +65,7 @@ const Chat = () => {
   const [hasActiveSession, setHasActiveSession] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const processedMessageIds = useRef(new Set<string>());
+  const [showPaygWarning, setShowPaygWarning] = useState(false);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -387,6 +389,18 @@ const Chat = () => {
         throw new Error(data.error || "Failed to send message");
       }
 
+      // Check for PAYG warning
+      if (data.paygWarning) {
+        // Show PAYG warning message
+        const warningMessage = {
+          id: (Date.now() + 1).toString(),
+          text: data.paygWarning,
+          sender: "assistant" as const,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, warningMessage]);
+      }
+
       // Update the user message status to "delivered"
       setMessages((prev) =>
         prev.map((msg) =>
@@ -442,12 +456,23 @@ const Chat = () => {
         )
       );
 
+      // Check if this is a plan limit error
+      let errorText =
+        "Sorry, there was an error sending your message. Please try again.";
+      let showUpgradeButton = false;
+
+      if (error instanceof Error && error.message.includes("free chats")) {
+        errorText = error.message;
+        showUpgradeButton = true;
+      }
+
       // Show error message to user
       const errorMessage = {
         id: (Date.now() + 1).toString(),
-        text: "Sorry, there was an error sending your message. Please try again.",
+        text: errorText,
         sender: "assistant" as const,
         timestamp: new Date(),
+        showUpgradeButton,
       };
 
       setMessages((prev) => [...prev, errorMessage]);
@@ -1194,6 +1219,16 @@ const Chat = () => {
                       <p className="text-sm">
                         {makeLinksClickable(displayText)}
                       </p>
+                    )}
+                    {msg.showUpgradeButton && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <button
+                          onClick={() => router.push("/app/plans")}
+                          className="bg-[#2D3E50] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#1a252f] transition-colors"
+                        >
+                          Upgrade Plan
+                        </button>
+                      </div>
                     )}
                     <div className="flex justify-between items-center mt-1">
                       <p className="text-xs opacity-70">
