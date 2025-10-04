@@ -16,6 +16,8 @@ export const authOptions: NextAuthOptions = {
     maxAge: 60 * 60 * 24 * 30,
   },
   pages: { signIn: "/login" },
+  // Add NEXTAUTH_URL for production
+  ...(process.env.NEXTAUTH_URL && { url: process.env.NEXTAUTH_URL }),
   cookies: {
     sessionToken: {
       name: `next-auth.session-token`,
@@ -151,6 +153,13 @@ export const authOptions: NextAuthOptions = {
       }
 
       return true;
+    },
+    async redirect({ url, baseUrl }) {
+      // Allows relative callback URLs
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // Allows callback URLs on the same origin
+      else if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
     },
     async jwt({ token, user, account }) {
       if (user) {

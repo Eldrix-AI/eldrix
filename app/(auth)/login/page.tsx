@@ -27,7 +27,10 @@ export default function LoginPage() {
 
   const handleSocialLogin = async (provider: "google" | "apple") => {
     try {
-      await signIn(provider, { callbackUrl: "/app/onboarding" });
+      await signIn(provider, {
+        callbackUrl: "/app/onboarding",
+        redirect: true,
+      });
     } catch (error) {
       setError(`Failed to sign in with ${provider}`);
     }
